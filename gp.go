@@ -38,22 +38,23 @@ type gpConvexProg struct {
 	l int
 	n int
 	ind [][2]int
-	y *matrix.FloatMatrix
-	u *matrix.FloatMatrix
-	Fsc *matrix.FloatMatrix
 	F *matrix.FloatMatrix
 	g *matrix.FloatMatrix
+	maxK int
 }
 
 func createGpProg(K []int, F, g *matrix.FloatMatrix) *gpConvexProg {
 	gp := &gpConvexProg{mnl:len(K)-1, l:F.Rows(), n:F.Cols()}
 	gp.ind = make([][2]int, len(K))
+	s := 0
 	for i := 0; i < len(K); i++ {
-		gp.ind[0][0] = i
-		gp.ind[0][1] = i + K[i]
+		gp.ind[i][0] = s
+		gp.ind[i][1] = s + K[i]
+		s += K[i]
 	}
 	gp.F = F
 	gp.g = g
+	gp.maxK = maxdim(K)
 	return gp
 }
 
@@ -67,65 +68,80 @@ func (gp *gpConvexProg) F1(x *matrix.FloatMatrix) (f, Df *matrix.FloatMatrix, er
 	f = matrix.FloatZeros(gp.mnl+1, 1)
 	Df = matrix.FloatZeros(gp.mnl+1, gp.n)
 	y := gp.g.Copy()
-	//blas.Copy(gp.g, y)
 	blas.GemvFloat(gp.F, x, y, 1.0, 1.0)
+	//fmt.Printf("y=\n%v\n", y.ToString("%.3f"))
+
 	for i, s := range gp.ind {
 		start := s[0]
 		stop := s[1]
+		//fmt.Printf("start, stop = %d, %d\n", start, stop)
 		// yi := exp(yi) = exp(Fi*x+gi)
 		ymax := maxvec(y.FloatArray()[start:stop])
-		ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop])).Add(-ymax)
+		// ynew = exp(y[start:stop] - ymax)
+		ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop]).Add(-ymax))
 		y.SetIndexes(matrix.Indexes(start,stop), ynew.FloatArray())
 
 		// fi = log sum yi = log sum exp(Fi*x+gi)
 		ysum := blas.AsumFloat(y, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
+		//fmt.Printf("ymax, ysum = %.3f, %.3f\n", ymax, ysum)
 		f.SetIndex(i, ymax + math.Log(ysum))
-		blas.ScalFloat(y, 1.0/ysum, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
 
+		blas.ScalFloat(y, 1.0/ysum, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
 		blas.GemvFloat(gp.F, y, Df, 1.0, 0.0, la.OptTrans, &la.IOpt{"m", stop-start},
 			&la.IOpt{"incy", gp.mnl+1}, &la.IOpt{"offseta", start},
 			&la.IOpt{"offsetx", start}, &la.IOpt{"offsety", i})
 	}
+	//fmt.Printf("Df=\n%v\n", Df.ToString("%.3f"))
 	return 
 }
 
 func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatrix, err error) {
-	f = nil; Df = nil; H = nil
+
 	err = nil
 	f = matrix.FloatZeros(gp.mnl+1, 1)
 	Df = matrix.FloatZeros(gp.mnl+1, gp.n)
+	H = matrix.FloatZeros(gp.n, gp.n)
 	y := gp.g.Copy()
-	//blas.Copy(gp.g, y)
+	Fsc := matrix.FloatZeros(gp.maxK, gp.n)
 	blas.GemvFloat(gp.F, x, y, 1.0, 1.0)
+	//fmt.Printf("y=\n%v\n", y.ToString("%.3f"))
+
 	for i, s := range gp.ind {
 		start := s[0]
 		stop := s[1]
+		//fmt.Printf("start, stop = %d, %d\n", start, stop)
 		// yi := exp(yi) = exp(Fi*x+gi)
 		ymax := maxvec(y.FloatArray()[start:stop])
-		ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop])).Add(-ymax)
+		ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop]).Add(-ymax))
 		y.SetIndexes(matrix.Indexes(start,stop), ynew.FloatArray())
 
 		// fi = log sum yi = log sum exp(Fi*x+gi)
 		ysum := blas.AsumFloat(y, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
+		//fmt.Printf("ymax, ysum = %.3f, %.3f\n", ymax, ysum)
+
 		f.SetIndex(i, ymax + math.Log(ysum))
 		blas.ScalFloat(y, 1.0/ysum, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
-
 		blas.GemvFloat(gp.F, y, Df, 1.0, 0.0, la.OptTrans, &la.IOpt{"m", stop-start},
 			&la.IOpt{"incy", gp.mnl+1}, &la.IOpt{"offseta", start},
 			&la.IOpt{"offsetx", start}, &la.IOpt{"offsety", i})
 				
-		Fsc := gp.F.GetSubMatrix(start, 0, stop-start)
+		Fsc.SetSubMatrix(0, 0, gp.F.GetSubMatrix(start, 0, stop-start))
+		//fmt.Printf("Fsc [%d rows] =\n%v\n", Fsc.Rows(), Fsc.ToString("%.3f"))
+		
 		for k := start; k < stop; k++ {
 			blas.AxpyFloat(Df, Fsc, -1.0, &la.IOpt{"n", gp.n},
 				&la.IOpt{"incx", gp.mnl+1}, &la.IOpt{"incy", Fsc.Rows()},
 				&la.IOpt{"offsetx", i}, &la.IOpt{"offsety", k-start})
-			blas.ScalFloat(Fsc, math.Sqrt(gp.y.GetIndex(k)),
-				&la.IOpt{"inc", gp.F.Rows()}, &la.IOpt{"offset", k-start})
+			blas.ScalFloat(Fsc, math.Sqrt(y.GetIndex(k)),
+				&la.IOpt{"inc", Fsc.Rows()}, &la.IOpt{"offset", k-start})
 		}
+		//fmt.Printf("Fsc =\n%v\n", Fsc.ToString("%.3f"))
 		// H += z[i]*Hi = z[i] *Fisc' * Fisc
 		blas.SyrkFloat(Fsc, H, z.GetIndex(i), 1.0, la.OptTrans,
 			&la.IOpt{"k", stop-start})
 	}
+	//fmt.Printf("Df=\n%v\n", Df.ToString("%.3f"))
+	//fmt.Printf("H=\n%v\n", H.ToString("%.3f"))
 	return 
 }
 
@@ -149,7 +165,7 @@ func Gp(K []int, F, g, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions) (
 		return
 	}
 
-	if g == nil || g.SizeMatch(l, 1) {
+	if g == nil || ! g.SizeMatch(l, 1) {
 		err = errors.New(fmt.Sprintf("'g' must matrix with size (%d,1)", l))
 		return
 	}
@@ -166,7 +182,7 @@ func Gp(K []int, F, g, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions) (
 		return
 	}
 	ml := G.Rows()
-	if h == nil || h.SizeMatch(ml, 1) {
+	if h == nil || ! h.SizeMatch(ml, 1) {
 		err = errors.New(fmt.Sprintf("'h' must matrix with size (%d,1)", ml))
 		return
 	}
@@ -182,7 +198,7 @@ func Gp(K []int, F, g, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions) (
 		return
 	}
 	p := A.Rows()
-	if b == nil || b.SizeMatch(p, 1) {
+	if b == nil || ! b.SizeMatch(p, 1) {
 		err = errors.New(fmt.Sprintf("'b' must matrix with size (%d,1)", p))
 		return
 	}
