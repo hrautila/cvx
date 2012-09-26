@@ -329,10 +329,10 @@ func cpl_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMa
 	F_e := &convexVarProg{F}
 	mx0 := &matrixVar{x0.Copy()}
 
-	kktsolver_u := func(W *sets.FloatMatrixSet, x, z MatrixVariable)(KKTVarFunc, error) {
-		g, err := kktsolver(W, x.Matrix(), z.Matrix())
-		solver := func(x, y, z MatrixVariable)(error) {
-			return g(x.Matrix(), y.Matrix(), z.Matrix())
+	kktsolver_u := func(W *sets.FloatMatrixSet, x MatrixVariable, z *matrix.FloatMatrix)(KKTVarFunc, error) {
+		g, err := kktsolver(W, x.Matrix(), z)
+		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)(error) {
+			return g(x.Matrix(), y.Matrix(), z)
 		}
 		return solver, err
 	}
@@ -591,6 +591,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 		checkpnt.MajorNext()
 		checkpnt.Check("loopstart", 10)
 
+		checkpnt.MinorPush(10)
 		if refinement != 0 || solopts.Debug {
 			f, Df, H, err = F.F2(x, &matrixVar{matrix.FloatVector(z.FloatArray()[:mnl])})
 			fDf = func(u, v MatrixVariable, alpha, beta float64, trans la.Option)error {
@@ -605,6 +606,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 				return Df.Df(u, v, alpha, beta, trans)
 			}
 		}
+		checkpnt.MinorPop()
 
 		gap = sdot(s, z, dims, mnl)
 
@@ -733,7 +735,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
         //
         // On entry, x, y, z contain bx, by, bz.
         // On exit, they contain ux, uy, uz.
-        f3, err = kktsolver(W, x, &matrixVar{z_mnl})
+        f3, err = kktsolver(W, x, z_mnl)
 		checkpnt.Check("f3", 100)
 		if err != nil {
 			// ?? z_mnl is really copy of z[:mnl] ... should we copy here back to z??
@@ -782,7 +784,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 				relaxed_iters = -1
 
 				// How about z_mnl here???
-				f3, err = kktsolver(W, x, &matrixVar{z_mnl})
+				f3, err = kktsolver(W, x, z_mnl)
 				if err != nil {
 					singular_kkt_matrix = true
 				}
@@ -868,7 +870,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
             blas.AxpyFloat(ws3, z, -1.0)
 
             // Solve for ux, uy, uz
-            err = f3(x, y, &matrixVar{z})
+            err = f3(x, y, z)
 
             // s := s - z 
             //    = lambda o\ bs - z.

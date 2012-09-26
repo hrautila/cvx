@@ -647,10 +647,9 @@ func cp_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMat
 	ux := x0.Copy()
 	uz := matrix.FloatZeros(mnl+cdim, 1)
 	
-	kktsolver_e := func(W *sets.FloatMatrixSet, xa, znla MatrixVariable)(KKTVarFunc, error) {
+	kktsolver_e := func(W *sets.FloatMatrixSet, xa MatrixVariable, znl *matrix.FloatMatrix)(KKTVarFunc, error) {
 		x, x_ok := xa.(*epigraph)
 		_ = x_ok
-		znl := znla.Matrix()
 		We := W.Copy()
 		// dnl is matrix
 		dnl := W.At("dnl")[0]
@@ -661,11 +660,10 @@ func cp_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMat
 		_, Df, _ := F.F1(x.m())
 		gradf0 := Df.GetRow(0, nil).Transpose()
 
-		solve := func(xa, ya, za MatrixVariable) (err error){
+		solve := func(xa, ya MatrixVariable, z *matrix.FloatMatrix) (err error){
 			x, x_ok := xa.(*epigraph)
 			_ = x_ok // TODO: remove or use x_ok
 			y := ya.Matrix()
-			z := za.Matrix()
 			err = nil
 			a := z.GetIndex(0)
 			blas.Copy(x.m(), ux)

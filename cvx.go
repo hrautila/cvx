@@ -43,13 +43,13 @@ type KKTSolver func(*sets.FloatMatrixSet, *matrix.FloatMatrix, *matrix.FloatMatr
 
 // KKTFunc/KKTVarFunc solves KKT equations.
 type KKTFunc func(x, y, z *matrix.FloatMatrix) error
-type KKTVarFunc func(x, y, z MatrixVariable) error
+type KKTVarFunc func(x, y MatrixVariable, z *matrix.FloatMatrix) error
 
 // KKTVarConeSolver produces solver function for cone problems
 type KKTVarConeSolver func(W *sets.FloatMatrixSet) (KKTVarFunc, error)
 
 // KKTVarSolver produces solver function for convex problems
-type KKTVarSolver func(W *sets.FloatMatrixSet, x, znl MatrixVariable)(KKTVarFunc, error)
+type KKTVarSolver func(W *sets.FloatMatrixSet, x MatrixVariable, znl *matrix.FloatMatrix)(KKTVarFunc, error)
 
 
 

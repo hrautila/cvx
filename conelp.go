@@ -434,8 +434,8 @@ func conelp_problem(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 
 	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTVarFunc, error) {
 		g, err := kktsolver(W)
-		solver := func(x, y, z MatrixVariable)error {
-			return g(x.Matrix(), y.Matrix(), z.Matrix())
+		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)error {
+			return g(x.Matrix(), y.Matrix(), z)
 		}
 		return solver, err
 	}
@@ -665,7 +665,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 		mCopy(b, dy)
 		blas.CopyFloat(h, s)
 		
-		err = f(x, dy, &matrixVar{s})
+		err = f(x, dy, s)
 		if err != nil {
 			fmt.Printf("f(x,dy,s): %s\n", err)
 			return
@@ -701,7 +701,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 		dx.Scal(-1.0)
 		y.Scal(0.0)
 		blas.ScalFloat(z, 0.0)
-		err = f(dx, y, &matrixVar{z})
+		err = f(dx, y, z)
 		if err != nil {
 			fmt.Printf("f(dx,y,z): %s\n", err)
 			return
@@ -1194,7 +1194,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 		x1.Scal(-1.0)
 		mCopy(b, y1)
 		blas.Copy(h, z1)
-		err = f3(x1, y1, &matrixVar{z1})
+		err = f3(x1, y1, z1)
 		//fmt.Printf("f3 result: x1=\n%v\nf3 result: z1=\n%v\n", x1, z1)
 		x1.Scal(dgi)
 		y1.Scal(dgi)
@@ -1305,7 +1305,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 
 			checkpnt.Check("f3-call", minor+20)
 			checkpnt.MinorPush(minor+20)
-			err = f3(x, y, &matrixVar{z})
+			err = f3(x, y, z)
 			checkpnt.MinorPop()
 			checkpnt.Check("f3-return", minor+40)
 

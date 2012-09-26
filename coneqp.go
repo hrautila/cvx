@@ -406,8 +406,8 @@ func coneqp_problem(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Floa
 
 	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTVarFunc, error) {
 		g, err := kktsolver(W)
-		solver := func(x, y, z MatrixVariable)error {
-			return g(x.Matrix(), y.Matrix(), z.Matrix())
+		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)error {
+			return g(x.Matrix(), y.Matrix(), z)
 		}
 		return solver, err
 	}
@@ -597,7 +597,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 		x = q.Copy()
 		x.Scal(0.0)
 		y = b.Copy()
-		f3(x, y, &matrixVar{matrix.FloatZeros(0, 1)})
+		f3(x, y, matrix.FloatZeros(0, 1))
 		
 		// dres = || P*x + q + A'*y || / resx0 
 		rx = q.Copy()
@@ -673,7 +673,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 		x.Scal(-1.0)
 		y = b.Copy()
 		z = h.Copy()
-		err = f(x, y, &matrixVar{z})
+		err = f(x, y, z)
 		if err != nil {
 			s := fmt.Sprintf("kkt error: %s", err)
 			err = errors.New("4: Rank(A) < p or Rank([P; G; A]) < n : "+s)
@@ -956,7 +956,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			scale(ws3, W, true, false)
 			blas.AxpyFloat(ws3, z, -1.0)
 
-			err := f3(x, y, &matrixVar{z})
+			err := f3(x, y, z)
 			if err != nil {
 				return err
 			}
