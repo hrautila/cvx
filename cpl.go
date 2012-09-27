@@ -881,6 +881,8 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
         if iters == 0 {
             wz2nl = matrix.FloatZeros(mnl, 1)
             wz2l = matrix.FloatZeros(cdim, 1)
+			checkpnt.AddMatrixVar("wz2nl", wz2nl)
+			checkpnt.AddMatrixVar("wz2l", wz2l)
 		}
 
 		res := func(ux, uy MatrixVariable, uz, us *matrix.FloatMatrix, vx, vy MatrixVariable, vz, vs *matrix.FloatMatrix)(err error) {
@@ -910,9 +912,11 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
             fA(ux, vy, -1.0, 1.0, la.OptNoTrans)
 
             // vz := vz - W'*us - GG*ux 
-            fDf(ux, &matrixVar{wz2nl}, 1.0, 0.0, la.OptNoTrans)
+            err = fDf(ux, &matrixVar{wz2nl}, 1.0, 0.0, la.OptNoTrans)
+			checkpnt.Check("15res", minor+10)
             blas.AxpyFloat(wz2nl, vz, -1.0)
             fG(ux, &matrixVar{wz2l}, 1.0, 0.0, la.OptNoTrans)
+			checkpnt.Check("20res", minor+10)
             blas.AxpyFloat(wz2l, vz, -1.0, &la.IOpt{"offsety", mnl})
             blas.Copy(us, ws3) 
             scale(ws3, W, true, false)
@@ -1313,7 +1317,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
                             // with sufficient decrease w.r.t. phi0.
 							backtrack = false
 							relaxed_iters = -1
-							//fmt.Printf("break 5 : newphi=%.7f\n", newphi)
+							//fmt.Printf("break 6 : newphi=%.7f\n", newphi)
 						}
 					}
 				}
