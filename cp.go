@@ -183,8 +183,8 @@ type epigraphDf struct {
 	df *matrix.FloatMatrix
 }
 
-func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Option) error {
-
+func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Option) (err error) {
+	err = nil
 	if trans.Equal(la.OptNoTrans) {
 		u_e, u_ok := u.(*epigraph)
 		v_e := v.Matrix()
@@ -192,8 +192,12 @@ func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 			fmt.Printf("Df: not a epigraph\n")
 			return errors.New("'u' not a epigraph")
 		}
-		blas.GemvFloat(d.df, u_e.m(), v_e, alpha, beta, la.OptNoTrans)
-		v_e.Add(-alpha*u_e.t())
+		//fmt.Printf("Df_e T: df=\n%v\n", d.df.ToString("%.7f"))
+		//fmt.Printf("Df_e T: u=\n%v\n", u_e.m().ToString("%.7f"))
+		//fmt.Printf("Df_e T: v=\n%v\n", v_e.ToString("%.7f"))
+		err = blas.GemvFloat(d.df, u_e.m(), v_e, alpha, beta, la.OptNoTrans)
+		v_e.Add(-alpha*u_e.t(), 0)
+		//fmt.Printf("Df_e T: v 1 =\n%v\n", v_e.ToString("%.7f"))
 	} else {
 		v_e, v_ok := v.(*epigraph)
 		u_e := u.Matrix()
@@ -201,10 +205,14 @@ func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 			fmt.Printf("Df: not a epigraph\n")
 			return errors.New("'v' not a epigraph")
 		}
-		blas.GemvFloat(d.df, u_e, v_e.m(), alpha, beta, la.OptTrans)
+		//fmt.Printf("Df_e N: df=\n%v\n", d.df.ToString("%.7f"))
+		//fmt.Printf("Df_e N: u=\n%v\n", u_e.ToString("%.7f"))
+		//fmt.Printf("Df_e N: v=\n%v\n", v_e.m().ToString("%.7f"))
+		err = blas.GemvFloat(d.df, u_e, v_e.m(), alpha, beta, la.OptTrans)
+		//fmt.Printf("Df_e N: v 1 =\n%v\n", v_e.m().ToString("%.7f"))
 		v_e.set(-alpha*u_e.GetIndex(0) + beta*v_e.t())
 	}
-	return nil
+	return 
 }
 
 // Implement MatrixVarH interface for standard matrix valued H in CP problems.
@@ -212,19 +220,22 @@ type epigraphH struct {
 	h *matrix.FloatMatrix
 }
 
-func (g *epigraphH) Hf(u, v MatrixVariable, alpha, beta float64) error {
+func (g *epigraphH) Hf(u, v MatrixVariable, alpha, beta float64) (err error) {
+	err = nil
 	u_e, u_ok := u.(*epigraph)
 	v_e, v_ok := v.(*epigraph)
 	if ! u_ok {
-		return errors.New("'u' not a epigraph")
+		err = errors.New("'u' not a epigraph")
+		return
 	}
 	if ! v_ok {
-		return errors.New("'v' not a epigraph")
+		err = errors.New("'v' not a epigraph")
+		return
 	}
-	blas.SymvFloat(g.h, u_e.m(), v_e.m(), alpha, beta)
+	err = blas.SymvFloat(g.h, u_e.m(), v_e.m(), alpha, beta)
 	v_e.set(v_e.t()+beta*v_e.t())
 
-	return nil
+	return
 }
 
 
