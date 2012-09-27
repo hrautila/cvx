@@ -245,13 +245,13 @@ func (u *matrixVar) String() string {
 
 func (u *matrixVar) Verify(dataline string) float64 {
 	diff := 0.0
-	refval, _ := matrix.FloatParseSpe(dataline)
+	refval, _ := matrix.FloatParse(dataline)
 	diff += blas.Nrm2Float(matrix.Minus(u.val, refval))
 	return diff
 }
 
 func (u *matrixVar) ShowError(dataline string)  {
-	refval, _ := matrix.FloatParseSpe(dataline)
+	refval, _ := matrix.FloatParse(dataline)
 	em := matrix.Minus(u.val, refval)
 	fmt.Printf("my data | ref.data | diff \n%v\n", em.ToString("%.4e"))
 }

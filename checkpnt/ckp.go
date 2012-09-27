@@ -74,7 +74,7 @@ type mVariable struct {
 }
 
 func (m *mVariable) Verify(dataline string) float64 {
-	refdata, err := matrix.FloatParseSpe(dataline)
+	refdata, err := matrix.FloatParse(dataline)
 	if err != nil {
 		fmt.Printf("parse error: %s", err)
 		return 0.0
@@ -83,7 +83,7 @@ func (m *mVariable) Verify(dataline string) float64 {
 }
 
 func (m *mVariable) ShowError(dataline string) {
-	refdata, err := matrix.FloatParseSpe(dataline)
+	refdata, err := matrix.FloatParse(dataline)
 	if err != nil {
 		fmt.Printf("parse error: %s", err)
 		return 

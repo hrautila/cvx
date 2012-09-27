@@ -74,7 +74,7 @@ func (u *epigraph) Verify(line string) float64 {
 	lpar := strings.Index(line, "[")
 	rpar := strings.LastIndex(line, "]")
 	mstart := strings.Index(line, "{")
-	refval, _ := matrix.FloatParseSpe(line[mstart:rpar])
+	refval, _ := matrix.FloatParse(line[mstart:rpar])
 	fval, _ := strconv.ParseFloat(strings.Trim(line[lpar+1:mstart], " "), 64)
 	diff += blas.Nrm2Float(matrix.Minus(refval, u.m()))
 	d := u.t() - fval
@@ -86,7 +86,7 @@ func (u *epigraph) ShowError(line string)  {
 	lpar := strings.Index(line, "[")
 	rpar := strings.LastIndex(line, "]")
 	mstart := strings.Index(line, "{")
-	refval, _ := matrix.FloatParseSpe(line[mstart:rpar])
+	refval, _ := matrix.FloatParse(line[mstart:rpar])
 	fval, _ := strconv.ParseFloat(strings.Trim(line[lpar+1:mstart], " "), 64)
 	df := matrix.Minus(u.m(), refval)
 	em, _ := matrix.FloatMatrixStacked(matrix.StackRight, u.m(), refval, df)
@@ -192,12 +192,8 @@ func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 			fmt.Printf("Df: not a epigraph\n")
 			return errors.New("'u' not a epigraph")
 		}
-		//fmt.Printf("Df_e T: df=\n%v\n", d.df.ToString("%.7f"))
-		//fmt.Printf("Df_e T: u=\n%v\n", u_e.m().ToString("%.7f"))
-		//fmt.Printf("Df_e T: v=\n%v\n", v_e.ToString("%.7f"))
 		err = blas.GemvFloat(d.df, u_e.m(), v_e, alpha, beta, la.OptNoTrans)
 		v_e.Add(-alpha*u_e.t(), 0)
-		//fmt.Printf("Df_e T: v 1 =\n%v\n", v_e.ToString("%.7f"))
 	} else {
 		v_e, v_ok := v.(*epigraph)
 		u_e := u.Matrix()
@@ -205,11 +201,7 @@ func (d *epigraphDf) Df(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 			fmt.Printf("Df: not a epigraph\n")
 			return errors.New("'v' not a epigraph")
 		}
-		//fmt.Printf("Df_e N: df=\n%v\n", d.df.ToString("%.7f"))
-		//fmt.Printf("Df_e N: u=\n%v\n", u_e.ToString("%.7f"))
-		//fmt.Printf("Df_e N: v=\n%v\n", v_e.m().ToString("%.7f"))
 		err = blas.GemvFloat(d.df, u_e, v_e.m(), alpha, beta, la.OptTrans)
-		//fmt.Printf("Df_e N: v 1 =\n%v\n", v_e.m().ToString("%.7f"))
 		v_e.set(-alpha*u_e.GetIndex(0) + beta*v_e.t())
 	}
 	return 
