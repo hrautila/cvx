@@ -55,14 +55,39 @@ func checkConeQpDimensions(dims *sets.DimensionSet) error {
 //        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 //
 // The first cone C_0 is the nonnegative orthant of dimension ml.  
-// The next N cones are 2nd order cones of dimension mq[0], ..., mq[N-1].
+// The next N cones are 2nd order cones of dimension r[0], ..., r[N-1].
 // The second order cone of dimension m is defined as
 //    
 //        { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
 //
-// The next M cones are positive semidefinite cones of order ms[0], ...,
-// ms[M-1] >= 0.  
+// The next M cones are positive semidefinite cones of order t[0], ..., t[M-1] >= 0.  
 //
+// The structure of C is specified by DimensionSet dims which holds following sets
+//
+//   dims.At("l")  l, the dimension of the nonnegative orthant (array of length 1)
+//   dims.At("q")  r[0], ... r[N-1], list with the dimesions of the second-order cones
+//   dims.At("s")  t[0], ... t[M-1], array with the dimensions of the positive
+//                 semidefinite cones
+//
+// The default value for dims is l: []int{G.Rows()}, q: []int{}, s: []int{}.
+//
+// Argument initval contains optional starting points for primal and
+// dual problems. If non-nil then initval is a FloatMatrixSet having following entries.
+// 
+//  initvals.At("x")[0]  starting point for x
+//  initvals.At("s")[0]  starting point for s
+//  initvals.At("y")[0]  starting point for y
+//  initvals.At("z")[0]  starting point for z
+//
+// On exit Solution contains the result and information about the accurancy of the 
+// solution. if SolutionStatus is Optimal then Solution.Result contains solutions
+// for the problems. 
+// 
+//   Result.At("x")[0]  solution for x
+//   Result.At("y")[0]  solution for y
+//   Result.At("s")[0]  solution for s
+//   Result.At("z")[0]  solution for z
+// 
 func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions,
 	initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
@@ -168,61 +193,6 @@ func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solop
 
 
 // Solves a pair of primal and dual convex quadratic cone programs using custom KKT solver.
-//
-// The customized solver provides a routine for solving linear  equations (`KKT systems')
-//
-//            [ P   A'  G'    ] [ ux ]   [ bx ]
-//            [ A   0   0     ] [ uy ] = [ by ].
-//            [ G   0   -W'*W ] [ uz ]   [ bz ]
-//
-// W is a scaling matrix, a block diagonal mapping
-//
-//           W*u = ( W0*u_0, ..., W_{N+M}*u_{N+M} )
-//
-// defined as follows.
-//
-// ** For the 'l' block (W_0):
-//
-//              W_0 = diag(d),
-//
-// with d a positive vector of length ml.
-//
-// ** For the 'q' blocks (W_{k+1}, k = 0, ..., N-1):
-//
-//              W_{k+1} = beta_k * ( 2 * v_k * v_k' - J )
-//
-// where beta_k is a positive scalar, v_k is a vector in R^mq[k]
-// with v_k[0] > 0 and v_k'*J*v_k = 1, and J = [1, 0; 0, -I].
-//
-// ** For the 's' blocks (W_{k+N}, k = 0, ..., M-1):
-//
-//              W_k * u = vec(r_k' * mat(u) * r_k)
-//
-// where r_k is a nonsingular matrix of order ms[k], and mat(x) is
-// the inverse of the vec operation.
-//
-// The optional argument kktsolver is a function that will be
-// called as g = kktsolver(W).  W is a FloatMatrixSet that contains
-// the parameters of the scaling:
-//
-// - W['d'] is a positive 'd' matrix of size (ml,1).
-// - W['di'] is a positive 'd' matrix with the elementwise inverse of W['d'].
-// - W['beta'] is a matrix [ beta_0, ..., beta_{N-1} ]
-// - W['v'] is a list [ v_0, ..., v_{N-1} ] of float matrices.
-// - W['r'] is a list [ r_0, ..., r_{M-1} ] of matrices
-// - W['rti'] is a list [ rti_0, ..., rti_{M-1} ], with rti_k the inverse of the
-//   transpose of r_k.
-//
-// The call g = kktsolver(W) should return a function g that solves 
-// the KKT system by g(x, y, z).  On entry, x, y, z contain the 
-// righthand side bx, by, bz.  On exit, they contain the solution,
-// with uz scaled, the argument z contains W*uz.  In other words, 
-// on exit x, y, z are the solution of
-//
-//            [ P   A'  G'*W^{-1} ] [ ux ]   [ bx ]
-//            [ A   0   0         ] [ uy ] = [ by ].
-//            [ G   0   -W'       ] [ uz ]   [ bz ]
-//
 //
 func ConeQpCustomKKT(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver,
 	solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
@@ -406,7 +376,7 @@ func coneqp_problem(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Floa
 	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTConeSolver,
 	solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
-	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTVarFunc, error) {
+	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTFuncVar, error) {
 		g, err := kktsolver(W)
 		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)error {
 			return g(x.Matrix(), y.Matrix(), z)
@@ -418,7 +388,7 @@ func coneqp_problem(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Floa
 
 
 func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
-	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTVarConeSolver,
+	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTConeSolverVar,
 	solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 
@@ -576,7 +546,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 	var z, s, ds, dz, rz *matrix.FloatMatrix
 	var lmbda, lmbdasq, sigs, sigz *matrix.FloatMatrix
 	var W *sets.FloatMatrixSet
-	var f, f3 KKTVarFunc
+	var f, f3 KKTFuncVar
 	var resx, resy, resz, step, sigma, mu, eta float64
 	var gap, pcost, dcost, relgap, pres, dres, f0 float64
 

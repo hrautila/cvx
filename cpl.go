@@ -19,27 +19,49 @@ import (
 	"math"
 )
 
-//    Solves a convex optimization problem with a linear objective
+// Solves a convex optimization problem with a linear objective
 //
 //        minimize    c'*x 
 //        subject to  f(x) <= 0
 //                    G*x <= h
 //                    A*x = b.                      
 //
-//    f is vector valued, convex and twice differentiable.  The linear 
-//    inequalities are with respect to a cone C defined as the Cartesian 
-//    product of N + M + 1 cones:
+// f is vector valued, convex and twice differentiable.  The linear 
+// inequalities are with respect to a cone C defined as the Cartesian 
+// product of N + M + 1 cones:
 //    
 //        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 //
-//    The first cone C_0 is the nonnegative orthant of dimension ml.  The 
-//    next N cones are second order cones of dimension mq[0], ..., mq[N-1].
-//    The second order cone of dimension m is defined as
+// The first cone C_0 is the nonnegative orthant of dimension ml.  The 
+// next N cones are second order cones of dimension r[0], ..., r[N-1].
+// The second order cone of dimension m is defined as
 //    
 //        { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
 //
-//    The next M cones are positive semidefinite cones of order ms[0], ...,
-//    ms[M-1] >= 0.  
+// The next M cones are positive semidefinite cones of order t[0], ..., t[M-1] >= 0.  
+//
+// The structure of C is specified by DimensionSet dims which holds following sets
+//
+//   dims.At("l")  l, the dimension of the nonnegative orthant (array of length 1)
+//   dims.At("q")  r[0], ... r[N-1], list with the dimesions of the second-order cones
+//   dims.At("s")  t[0], ... t[M-1], array with the dimensions of the positive
+//                 semidefinite cones
+//
+// The default value for dims is l: []int{h.Rows()}, q: []int{}, s: []int{}.
+//
+// On exit Solution contains the result and information about the accurancy of the 
+// solution. if SolutionStatus is Optimal then Solution.Result contains solutions
+// for the problems. 
+// 
+//   Result.At("x")[0]    primal solution 
+//   Result.At("snl")[0]  non-linear constraint slacks
+//   Result.At("sl")[0]   linear constraint slacks
+//   Result.At("y")[0]    values for linear equality constraints y
+//   Result.At("znl")[0]  values of dual variables for nonlinear inequalities
+//   Result.At("zl")[0]   values of dual variables for linear inequalities
+// 
+// If err is non-nil then sol is nil and err contains information about the argument or
+// computation error.
 //
 func Cpl(F ConvexProg, c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions) (sol *Solution, err error) {
 
@@ -136,7 +158,7 @@ func Cpl(F ConvexProg, c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSe
 	}
 
 	var factor kktFactor
-	var kktsolver KKTSolver = nil
+	var kktsolver KKTCpSolver = nil
 	if kktfunc, ok := solvers[solvername]; ok {
 		// kkt function returns us problem spesific factor function.
 		factor, err = kktfunc(G, dims, A, mnl)
@@ -165,7 +187,7 @@ func Cpl(F ConvexProg, c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSe
 // using custom KTT equation solver.
 //
 func CplCustomKKT(F ConvexProg, c *matrix.FloatMatrix, G, h, A,	b *matrix.FloatMatrix,
-	dims *sets.DimensionSet, kktsolver KKTSolver,
+	dims *sets.DimensionSet, kktsolver KKTCpSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {
 
 	var mnl int
@@ -263,7 +285,7 @@ func CplCustomKKT(F ConvexProg, c *matrix.FloatMatrix, G, h, A,	b *matrix.FloatM
 // using custom KTT equation solver and custom constraints G and A.
 //
 func CplCustomMatrix(F ConvexProg, c *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
-	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTSolver,
+	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTCpSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {
 
 	var mnl int
@@ -339,7 +361,7 @@ func CplCustomMatrix(F ConvexProg, c *matrix.FloatMatrix, G MatrixG, h *matrix.F
 
 
 func cpl_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix, A MatrixVarA,
-	b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTSolver,
+	b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTCpSolver,
 	solopts *SolverOptions, x0 *matrix.FloatMatrix, mnl int)(sol *Solution, err error) {
 
 	err = nil
@@ -347,7 +369,7 @@ func cpl_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMa
 	F_e := &convexVarProg{F}
 	mx0 := &matrixVar{x0.Copy()}
 
-	kktsolver_u := func(W *sets.FloatMatrixSet, x MatrixVariable, z *matrix.FloatMatrix)(KKTVarFunc, error) {
+	kktsolver_u := func(W *sets.FloatMatrixSet, x MatrixVariable, z *matrix.FloatMatrix)(KKTFuncVar, error) {
 		g, err := kktsolver(W, x.Matrix(), z)
 		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)(error) {
 			return g(x.Matrix(), y.Matrix(), z)
@@ -362,7 +384,7 @@ func cpl_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMa
 
 // Internal CPL solver for CP and CLP problems. Everything is wrapped to proper interfaces
 func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
-	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTVarSolver,
+	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTCpSolverVar,
 	solopts *SolverOptions, x0 MatrixVariable, mnl int) (sol *Solution, err error) {
 
 	const (
@@ -583,7 +605,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 	var dsdz, dsdz0, step, step0, dphi, dphi0, sigma0, eta0 float64
 	var newresx, newresznl, newgap, newphi float64
 	var W *sets.FloatMatrixSet
-	var f3 KKTVarFunc
+	var f3 KKTFuncVar
 	
 	checkpnt.AddFloatVar("gap", &gap)
 	checkpnt.AddFloatVar("pcost", &pcost)
@@ -611,7 +633,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 
 		checkpnt.MinorPush(10)
 		if refinement != 0 || solopts.Debug {
-			f, Df, H, err = F.F2(x, &matrixVar{matrix.FloatVector(z.FloatArray()[:mnl])})
+			f, Df, H, err = F.F2(x, matrix.FloatVector(z.FloatArray()[:mnl]))
 			fDf = func(u, v MatrixVariable, alpha, beta float64, trans la.Option)error {
 				return Df.Df(u, v, alpha, beta, trans)
 			}

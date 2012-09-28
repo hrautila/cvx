@@ -27,7 +27,7 @@ type kktSolver func(*matrix.FloatMatrix, *sets.DimensionSet, *matrix.FloatMatrix
 //
 // W is a scaling matrix, a block diagonal mapping 
 //
-// The call f = KKTConeSolver(W) or f = KKTSolver(W, x, z)should return a function f
+// The call f = KKTConeSolver(W) or f = KKTCpSolver(W, x, z)should return a function f
 // that solves the KKT system by f(x, y, z).  On entry, x, y, z contain the 
 // righthand side bx, by, bz.  On exit, they contain the solution, 
 // with uz scaled: the argument z contains W*uz.  In other words,
@@ -37,18 +37,22 @@ type kktSolver func(*matrix.FloatMatrix, *sets.DimensionSet, *matrix.FloatMatrix
 //            [ A  0   0         ] [ uy ] = [ by ].
 //            [ G  0  -W'        ] [ uz ]   [ bz ]
 //
-type KKTConeSolver func(W *sets.FloatMatrixSet) (KKTFunc, error)
-type KKTSolver func(*sets.FloatMatrixSet, *matrix.FloatMatrix, *matrix.FloatMatrix)(KKTFunc, error)
 
-// KKTFunc/KKTVarFunc solves KKT equations.
+// KKTFunc solves KKT equations for matrix arguments
 type KKTFunc func(x, y, z *matrix.FloatMatrix) error
-type KKTVarFunc func(x, y MatrixVariable, z *matrix.FloatMatrix) error
 
-// KKTVarConeSolver produces solver function for cone problems
-type KKTVarConeSolver func(W *sets.FloatMatrixSet) (KKTVarFunc, error)
+// KKTFuncVar solves KKT equations for custom variable arguments
+type KKTFuncVar func(x, y MatrixVariable, z *matrix.FloatMatrix) error
 
-// KKTVarSolver produces solver function for convex problems
-type KKTVarSolver func(W *sets.FloatMatrixSet, x MatrixVariable, znl *matrix.FloatMatrix)(KKTVarFunc, error)
+// KKTConeSolver produces solver function for cone problems with matrix variables
+type KKTConeSolver func(W *sets.FloatMatrixSet) (KKTFunc, error)
+
+// KKTConeSolver produces solver function for cone problems with custom variables
+type KKTConeSolverVar func(W *sets.FloatMatrixSet) (KKTFuncVar, error)
+
+// KKTCpSolver produces solver function for convex problems
+type KKTCpSolver func(*sets.FloatMatrixSet, *matrix.FloatMatrix, *matrix.FloatMatrix)(KKTFunc, error)
+type KKTCpSolverVar func(W *sets.FloatMatrixSet, x MatrixVariable, znl *matrix.FloatMatrix)(KKTFuncVar, error)
 
 
 

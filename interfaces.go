@@ -20,7 +20,7 @@ import (
 //
 // The call Gf(u, v, alpha, beta, trans) should evaluate the matrix-vector products
 //
-//   v := alpha * G * u + beta * v  if trans is linalg.OptNoTrans
+//   v := alpha * G * u + beta * v   if trans is linalg.OptNoTrans
 //   v := alpha * G' * u + beta * v  if trans is linalg.OptTrans
 //
 type MatrixG interface {
@@ -39,7 +39,7 @@ type MatrixVarG interface {
 //
 // The call Af(u, v, alpha, beta, trans) should evaluate the matrix-vector products
 //
-//   v := alpha * A * u + beta * v  if trans is linalg.OptNoTrans
+//   v := alpha * A * u + beta * v   if trans is linalg.OptNoTrans
 //   v := alpha * A' * u + beta * v  if trans is linalg.OptTrans
 //
 type MatrixA interface {
@@ -76,20 +76,20 @@ type MatrixVarP interface {
 //
 // F0() returns a tuple (mnl, x0, error).  
 //
-//  * mnl is the number of nonlinear inequality constraints.
-//  * x0 is a point in the domain of f.
+//  - mnl is the number of nonlinear inequality constraints.
+//  - x0 is a point in the domain of f.
 //
 // F1(x) returns a tuple (f, Df, error).
 //
-//  * f is a matrix of size (mnl, 1) containing f(x). 
-//  * Df is a matrix of size (mnl, n), containing the derivatives of f at x.
+//  - f is a matrix of size (mnl, 1) containing f(x). 
+//  - Df is a matrix of size (mnl, n), containing the derivatives of f at x.
 //    Df[k,:] is the transpose of the gradient of fk at x.
 //    If x is not in dom f, F1(x) returns (nil, nil, error)
 //
 // F2(x, z) with z a positive matrix of size (mnl,1), returns a tuple (f, Df, H, error).
 //            
-//   * f and Df are defined as above.
-//   * H is a matrix of size (n,n).  The lower triangular part of H contains the
+//   - f and Df are defined as above.
+//   - H is a matrix of size (n,n).  The lower triangular part of H contains the
 //     lower triangular part of sum_k z[k] * Hk where Hk is the Hessian of fk at x.
 //  
 // When F2() is called, it can be assumed that x is dom f. 
@@ -125,7 +125,7 @@ type ConvexVarProg interface {
 	
 	// F(x, z) with z a positive matrix variable. Return a tuple
 	// (f, Df, H), where f, Df as above. H is an instance of MatrixVarH interface.
-	F2(x, z MatrixVariable)(f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error)
+	F2(x MatrixVariable, z *matrix.FloatMatrix)(f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error)
 }
 
 // Public interface to provide custom Df matrix-vector products
@@ -333,10 +333,10 @@ func (p *convexVarProg) F1(x MatrixVariable) (f MatrixVariable, Df MatrixVarDf, 
 	return
 }
 
-func (p *convexVarProg) F2(x, z MatrixVariable) (f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error) {
+func (p *convexVarProg) F2(x MatrixVariable, z *matrix.FloatMatrix) (f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error) {
 	f = nil; Df = nil; H = nil
 	var f0, Df0, H0 *matrix.FloatMatrix
-	f0, Df0, H0, err = p.cp.F2(x.Matrix(), z.Matrix())
+	f0, Df0, H0, err = p.cp.F2(x.Matrix(), z)
 	if err != nil { return }
 	f = &matrixVar{f0}
 	Df = &matrixVarDf{Df0}

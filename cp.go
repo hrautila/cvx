@@ -124,7 +124,7 @@ type cpConvexProg interface {
 	
 	// F(x, z) with z a positive  matrix of size (mnl, 1). Return a tuple
 	// (f, Df, H), where f, Df as above. H is matrix of size (n, n).
-	F2(x, z MatrixVariable)(f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error)
+	F2(x MatrixVariable, z *matrix.FloatMatrix)(f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error)
 }
 
 
@@ -160,14 +160,13 @@ func (F *cpProg) F1(xa MatrixVariable) (f MatrixVariable, Df MatrixVarDf, err er
 	return 
 }
 
-func (F *cpProg) F2(xa, za MatrixVariable) (f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error) {
+func (F *cpProg) F2(xa MatrixVariable, z *matrix.FloatMatrix) (f MatrixVariable, Df MatrixVarDf, H MatrixVarH, err error) {
 	f = nil; Df = nil; H = nil; err = nil
 	x, x_ok := xa.(*epigraph)	
 	if ! x_ok {
 		err = errors.New("'x' argument not an epigraph")
 		return
 	}
-	z := za.Matrix()
 	var f0, Df0, H0 *matrix.FloatMatrix
 	f0, Df0, H0, err = F.convexF.F2(x.m(), z)
 	if err != nil { return }
@@ -355,12 +354,35 @@ func (a *epiMatrixA) Af(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 //        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 //
 // The first cone C_0 is the nonnegative orthant of dimension ml.  The 
-// next N cones are second order cones of dimension mq[0], ..., mq[N-1].
+// next N cones are second order cones of dimension r[0], ..., r[N-1].
 // The second order cone of dimension m is defined as
 //    
 //        { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
 //
-// The next M cones are positive semidefinite cones of order ms[0], ..., ms[M-1] >= 0.  
+// The next M cones are positive semidefinite cones of order t[0], ..., t[M-1] >= 0.  
+//
+// The structure of C is specified by DimensionSet dims which holds following sets
+//
+//   dims.At("l")  l, the dimension of the nonnegative orthant (array of length 1)
+//   dims.At("q")  r[0], ... r[N-1], list with the dimesions of the second-order cones
+//   dims.At("s")  t[0], ... t[M-1], array with the dimensions of the positive
+//                 semidefinite cones
+//
+// The default value for dims is l: []int{h.Rows()}, q: []int{}, s: []int{}.
+//
+// On exit Solution contains the result and information about the accurancy of the 
+// solution. if SolutionStatus is Optimal then Solution.Result contains solutions
+// for the problems. 
+// 
+//   Result.At("x")[0]    primal solution 
+//   Result.At("snl")[0]  non-linear constraint slacks
+//   Result.At("sl")[0]   linear constraint slacks
+//   Result.At("y")[0]    values for linear equality constraints y
+//   Result.At("znl")[0]  values of dual variables for nonlinear inequalities
+//   Result.At("zl")[0]   values of dual variables for linear inequalities
+// 
+// If err is non-nil then sol is nil and err contains information about the argument or
+// computation error.
 //
 func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions) (sol *Solution, err error) {
 
@@ -450,7 +472,7 @@ func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, s
 	b_e := matrixVar{b}
 
 	var factor kktFactor
-	var kktsolver KKTSolver = nil
+	var kktsolver KKTCpSolver = nil
 	if kktfunc, ok := solvers[solvername]; ok {
 		// kkt function returns us problem spesific factor function.
 		factor, err = kktfunc(G, dims, A, mnl)
@@ -479,7 +501,7 @@ func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, s
 // using custom solver for KKT equations.
 //
 func CpCustomKKT(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
-	kktsolver KKTSolver, solopts *SolverOptions) (sol *Solution, err error) {
+	kktsolver KKTCpSolver, solopts *SolverOptions) (sol *Solution, err error) {
 
 	var mnl int
 	var x0 *matrix.FloatMatrix
@@ -575,7 +597,7 @@ func CpCustomKKT(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.Dimens
 // using custom solver for KKT equations and constraint equations G and A.
 //
 func CpCustomMatrix(F ConvexProg, G MatrixG, h *matrix.FloatMatrix, A MatrixA,
-	b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTSolver,
+	b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTCpSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {
 
 	var mnl int
@@ -652,7 +674,7 @@ func CpCustomMatrix(F ConvexProg, G MatrixG, h *matrix.FloatMatrix, A MatrixA,
 // Here problem is already translated to epigraph format except original convex problem.
 // We wrap it and create special CP epigraph kktsolver.
 func cp_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix, A MatrixVarA,
-	b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTSolver,
+	b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTCpSolver,
 	solopts *SolverOptions, x0 *matrix.FloatMatrix, mnl int)(sol *Solution, err error) {
 
 	err = nil
@@ -664,7 +686,7 @@ func cp_problem(F ConvexProg, c MatrixVariable, G MatrixVarG, h *matrix.FloatMat
 	ux := x0.Copy()
 	uz := matrix.FloatZeros(mnl+cdim, 1)
 	
-	kktsolver_e := func(W *sets.FloatMatrixSet, xa MatrixVariable, znl *matrix.FloatMatrix)(KKTVarFunc, error) {
+	kktsolver_e := func(W *sets.FloatMatrixSet, xa MatrixVariable, znl *matrix.FloatMatrix)(KKTFuncVar, error) {
 		x, x_ok := xa.(*epigraph)
 		_ = x_ok
 		We := W.Copy()

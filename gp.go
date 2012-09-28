@@ -69,12 +69,10 @@ func (gp *gpConvexProg) F1(x *matrix.FloatMatrix) (f, Df *matrix.FloatMatrix, er
 	Df = matrix.FloatZeros(gp.mnl+1, gp.n)
 	y := gp.g.Copy()
 	blas.GemvFloat(gp.F, x, y, 1.0, 1.0)
-	//fmt.Printf("y=\n%v\n", y.ToString("%.3f"))
 
 	for i, s := range gp.ind {
 		start := s[0]
 		stop := s[1]
-		//fmt.Printf("start, stop = %d, %d\n", start, stop)
 		// yi := exp(yi) = exp(Fi*x+gi)
 		ymax := maxvec(y.FloatArray()[start:stop])
 		// ynew = exp(y[start:stop] - ymax)
@@ -83,7 +81,6 @@ func (gp *gpConvexProg) F1(x *matrix.FloatMatrix) (f, Df *matrix.FloatMatrix, er
 
 		// fi = log sum yi = log sum exp(Fi*x+gi)
 		ysum := blas.AsumFloat(y, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
-		//fmt.Printf("ymax, ysum = %.3f, %.3f\n", ymax, ysum)
 		f.SetIndex(i, ymax + math.Log(ysum))
 
 		blas.ScalFloat(y, 1.0/ysum, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
@@ -91,7 +88,6 @@ func (gp *gpConvexProg) F1(x *matrix.FloatMatrix) (f, Df *matrix.FloatMatrix, er
 			&la.IOpt{"incy", gp.mnl+1}, &la.IOpt{"offseta", start},
 			&la.IOpt{"offsetx", start}, &la.IOpt{"offsety", i})
 	}
-	//fmt.Printf("Df=\n%v\n", Df.ToString("%.3f"))
 	return 
 }
 
@@ -109,7 +105,7 @@ func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatr
 	for i, s := range gp.ind {
 		start := s[0]
 		stop := s[1]
-		//fmt.Printf("start, stop = %d, %d\n", start, stop)
+
 		// yi := exp(yi) = exp(Fi*x+gi)
 		ymax := maxvec(y.FloatArray()[start:stop])
 		ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop]).Add(-ymax))
@@ -117,7 +113,6 @@ func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatr
 
 		// fi = log sum yi = log sum exp(Fi*x+gi)
 		ysum := blas.AsumFloat(y, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
-		//fmt.Printf("ymax, ysum = %.3f, %.3f\n", ymax, ysum)
 
 		f.SetIndex(i, ymax + math.Log(ysum))
 		blas.ScalFloat(y, 1.0/ysum, &la.IOpt{"n", stop-start}, &la.IOpt{"offset", start})
@@ -126,7 +121,6 @@ func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatr
 			&la.IOpt{"offsetx", start}, &la.IOpt{"offsety", i})
 				
 		Fsc.SetSubMatrix(0, 0, gp.F.GetSubMatrix(start, 0, stop-start))
-		//fmt.Printf("Fsc [%d rows] =\n%v\n", Fsc.Rows(), Fsc.ToString("%.3f"))
 		
 		for k := start; k < stop; k++ {
 			blas.AxpyFloat(Df, Fsc, -1.0, &la.IOpt{"n", gp.n},
@@ -135,13 +129,10 @@ func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatr
 			blas.ScalFloat(Fsc, math.Sqrt(y.GetIndex(k)),
 				&la.IOpt{"inc", Fsc.Rows()}, &la.IOpt{"offset", k-start})
 		}
-		//fmt.Printf("Fsc =\n%v\n", Fsc.ToString("%.3f"))
 		// H += z[i]*Hi = z[i] *Fisc' * Fisc
 		blas.SyrkFloat(Fsc, H, z.GetIndex(i), 1.0, la.OptTrans,
 			&la.IOpt{"k", stop-start})
 	}
-	//fmt.Printf("Df=\n%v\n", Df.ToString("%.3f"))
-	//fmt.Printf("H=\n%v\n", H.ToString("%.3f"))
 	return 
 }
 

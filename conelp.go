@@ -91,14 +91,39 @@ func checkConeLpDimensions(dims *sets.DimensionSet) error {
 //        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 //
 // The first cone C_0 is the nonnegative orthant of dimension ml.
-// The next N cones are second order cones of dimension mq[0], ..., 
-// mq[N-1].  The second order cone of dimension m is defined as
+// The next N cones are second order cones of dimension r[0], ..., r[N-1].  
+// The second order cone of dimension m is defined as
 //    
 //        { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
 //
-// The next M cones are positive semidefinite cones of order ms[0], ...,
-// ms[M-1] >= 0.  
+// The next M cones are positive semidefinite cones of order t[0], ..., t[M-1] >= 0.  
 //
+// The structure of C is specified by DimensionSet dims which holds following sets
+//
+//   dims.At("l")  l, the dimension of the nonnegative orthant (array of length 1)
+//   dims.At("q")  r[0], ... r[N-1], list with the dimesions of the second-order cones
+//   dims.At("s")  t[0], ... t[M-1], array with the dimensions of the positive
+//                 semidefinite cones
+//
+// The default value for dims is l: []int{G.Rows()}, q: []int{}, s: []int{}.
+//
+// Arguments primalstart, dualstart are optional starting points for primal and
+// dual problems. If non-nil then primalstart is a FloatMatrixSet having two entries.
+// 
+//  primalstart.At("x")[0]  starting point for x
+//  primalstart.At("s")[0]  starting point for s
+//  dualstart.At("y")[0]    starting point for y
+//  dualstart.At("z")[0]    starting point for z
+//
+// On exit Solution contains the result and information about the accurancy of the 
+// solution. if SolutionStatus is Optimal then Solution.Result contains solutions
+// for the problems. 
+// 
+//   Result.At("x")[0]  solution for x
+//   Result.At("y")[0]  solution for y
+//   Result.At("s")[0]  solution for s
+//   Result.At("z")[0]  solution for z
+// 
 func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions,
 	primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
@@ -124,7 +149,6 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 
 	cdim := dims.Sum("l", "q") + dims.SumSquared("s")
 	cdim_pckd := dims.Sum("l", "q") + dims.SumPacked("s")
-	//cdim_diag := dims.Sum("l", "q", "s")
 
 	if h.Rows() != cdim {
 		err = errors.New(fmt.Sprintf("'h' must be float matrix of size (%d,1)", cdim))
@@ -206,12 +230,6 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 
 // Solves a pair of primal and dual cone programs  using custom KKT solver.
 //
-// The customize solver can provide a routine for solving linear equations (`KKT systems')
-//        
-//            [ 0  A'  G'   ] [ ux ]   [ bx ]
-//            [ A  0   0    ] [ uy ] = [ by ].
-//            [ G  0  -W'*W ] [ uz ]   [ bz ]
-//
 func ConeLpCustomKKT(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
 	kktsolver KKTConeSolver, solopts *SolverOptions, primalstart,
 	dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
@@ -286,7 +304,7 @@ func ConeLpCustomKKT(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
 }
 
 // Solves a pair of primal and dual cone programs using custom KKT solver and constraint
-// matrices G, A
+// interfaces MatrixG and MatrixA
 //
 func ConeLpCustomMatrix(c *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
 	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver,
@@ -373,7 +391,7 @@ func conelp_problem(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTConeSolver, 
 	solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
-	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTVarFunc, error) {
+	kktsolver_u := func(W *sets.FloatMatrixSet)(KKTFuncVar, error) {
 		g, err := kktsolver(W)
 		solver := func(x, y MatrixVariable, z *matrix.FloatMatrix)error {
 			return g(x.Matrix(), y.Matrix(), z)
@@ -385,7 +403,7 @@ func conelp_problem(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 
 
 func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
-	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTVarConeSolver,
+	A MatrixVarA, b MatrixVariable, dims *sets.DimensionSet, kktsolver KKTConeSolverVar,
 	solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 	err = nil
@@ -558,7 +576,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	checkpnt.AddMatrixVar("dz", dz)
 
 	var W *sets.FloatMatrixSet
-	var f KKTVarFunc
+	var f KKTFuncVar
 	if primalstart == nil || dualstart == nil {
 		// Factor
 		//
@@ -839,7 +857,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	var dg, dgi float64
 	var th *matrix.FloatMatrix
 	var WS fVarClosure
-	var f3 KKTVarFunc
+	var f3 KKTFuncVar
 	var cx, by, hz, rt float64
 	var hresx, resx, hresy, resy, hresz, resz float64
 	var dres, pres, dinfres, pinfres float64
