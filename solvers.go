@@ -19,16 +19,17 @@ import (
 
 // Solves a pair of primal and dual LPs
 //
-//        minimize    c'*x
-//        subject to  G*x + s = h
-//                    A*x = b
-//                    s >= 0
+//      minimize    c'*x
+//      subject to  G*x + s = h
+//                  A*x = b
+//                  s >= 0
 //
-//        maximize    -h'*z - b'*y
-//        subject to  G'*z + A'*y + c = 0
+//      maximize    -h'*z - b'*y
+//      subject to  G'*z + A'*y + c = 0
 //                    z >= 0.
 //
-func Lp(c, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
+func Lp(c, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions,
+	primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 	if c == nil {
 		err = errors.New("'c' must a column matrix")
@@ -76,25 +77,8 @@ func Lp(c, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions, primalstart, 
 //                    A*x = b.
 //
 //
-// Input arguments.
-//
-// * P is a n x n float matrix with the lower triangular part of P stored
-// in the lower triangle.  Must be positive semidefinite.
-//
-// * q is an n x 1 matrix.
-//
-// * G is an m x n matrix or nil.
-//
-// * h is an m x 1 matrix or nil.
-//
-// * A is a p x n matrix or nil.
-//
-// * b is a p x 1 matrix or nil.
-//
-// The default values for G, h, A and b are empty matrices with zero rows.
-//
-//
-func Qp(P, q, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
+func Qp(P, q, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions,
+	initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 	sol = nil
 	if P == nil || P.Rows() != P.Cols() {
@@ -142,26 +126,27 @@ func Qp(P, q, G, h, A, b *matrix.FloatMatrix, solopts *SolverOptions, initvals *
 
 
 
-//    Solves a pair of primal and dual SOCPs
+// Solves a pair of primal and dual SOCPs
 //
-//        minimize    c'*x             
-//        subject to  Gl*x + sl = hl      
-//                    Gq[k]*x + sq[k] = hq[k],  k = 0, ..., N-1
-//                    A*x = b                      
-//                    sl >= 0,  
-//                    sq[k] >= 0, k = 0, ..., N-1
+//     minimize    c'*x             
+//     subject to  Gl*x + sl = hl      
+//                 Gq[k]*x + sq[k] = hq[k],  k = 0, ..., N-1
+//                 A*x = b                      
+//                 sl >= 0,  
+//                 sq[k] >= 0, k = 0, ..., N-1
 //
-//        maximize    -hl'*z - sum_k hq[k]'*zq[k] - b'*y
-//        subject to  Gl'*zl + sum_k Gq[k]'*zq[k] + A'*y + c = 0
-//                    zl >= 0,  zq[k] >= 0, k = 0, ..., N-1.
+//     maximize   -hl'*z - sum_k hq[k]'*zq[k] - b'*y
+//     subject to  Gl'*zl + sum_k Gq[k]'*zq[k] + A'*y + c = 0
+//                 zl >= 0,  zq[k] >= 0, k = 0, ..., N-1.
 //
-//    The inequalities sl >= 0 and zl >= 0 are elementwise vector 
-//    inequalities.  The inequalities sq[k] >= 0, zq[k] >= 0 are second 
-//    order cone inequalities, i.e., equivalent to 
+// The inequalities sl >= 0 and zl >= 0 are elementwise vector 
+// inequalities.  The inequalities sq[k] >= 0, zq[k] >= 0 are second 
+// order cone inequalities, i.e., equivalent to 
 //    
-//        sq[k][0] >= || sq[k][1:] ||_2,  zq[k][0] >= || zq[k][1:] ||_2.
+//     sq[k][0] >= || sq[k][1:] ||_2,  zq[k][0] >= || zq[k][1:] ||_2.
 //
-func Socp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghq *sets.FloatMatrixSet, solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
+func Socp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghq *sets.FloatMatrixSet, solopts *SolverOptions,
+	primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 	if c == nil {
 		err = errors.New("'c' must a column matrix")
 		return
@@ -294,7 +279,7 @@ func Socp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghq *sets.FloatMatrixSet, solopts
 	return
 }
 
-//    Solves a pair of primal and dual SDPs
+// Solves a pair of primal and dual SDPs
 //
 //        minimize    c'*x             
 //        subject to  Gl*x + sl = hl      
@@ -306,14 +291,15 @@ func Socp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghq *sets.FloatMatrixSet, solopts
 //        subject to  Gl'*zl + sum_k Gs[k]'*vec(zs[k]) + A'*y + c = 0
 //                    zl >= 0,  zs[k] >= 0, k = 0, ..., N-1.
 //
-//    The inequalities sl >= 0 and zl >= 0 are elementwise vector 
-//    inequalities.  The inequalities ss[k] >= 0, zs[k] >= 0 are matrix 
-//    inequalities, i.e., the symmetric matrices ss[k] and zs[k] must be
-//    positive semidefinite.  mat(Gs[k]*x) is the symmetric matrix X with 
-//    X[:] = Gs[k]*x.  For a symmetric matrix, zs[k], vec(zs[k]) is the 
-//    vector zs[k][:].
+// The inequalities sl >= 0 and zl >= 0 are elementwise vector 
+// inequalities.  The inequalities ss[k] >= 0, zs[k] >= 0 are matrix 
+// inequalities, i.e., the symmetric matrices ss[k] and zs[k] must be
+// positive semidefinite.  mat(Gs[k]*x) is the symmetric matrix X with 
+// X[:] = Gs[k]*x.  For a symmetric matrix, zs[k], vec(zs[k]) is the 
+// vector zs[k][:].
 //    
-func Sdp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghs *sets.FloatMatrixSet, solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
+func Sdp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghs *sets.FloatMatrixSet, solopts *SolverOptions,
+	primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 	if c == nil {
 		err = errors.New("'c' must a column matrix")
 		return

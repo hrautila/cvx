@@ -155,6 +155,15 @@ func Cpl(F ConvexProg, c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSe
 	return cpl_problem(F, &mc, &mG, h, &mA, &mb, dims, kktsolver, solopts, x0, mnl)
 }
 
+// Solves a convex optimization problem with a linear objective
+//
+//        minimize    c'*x 
+//        subject to  f(x) <= 0
+//                    G*x <= h
+//                    A*x = b.                      
+//
+// using custom KTT equation solver.
+//
 func CplCustomKKT(F ConvexProg, c *matrix.FloatMatrix, G, h, A,	b *matrix.FloatMatrix,
 	dims *sets.DimensionSet, kktsolver KKTSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {
@@ -244,6 +253,15 @@ func CplCustomKKT(F ConvexProg, c *matrix.FloatMatrix, G, h, A,	b *matrix.FloatM
 }
 
 
+// Solves a convex optimization problem with a linear objective
+//
+//        minimize    c'*x 
+//        subject to  f(x) <= 0
+//                    G*x <= h
+//                    A*x = b.                      
+//
+// using custom KTT equation solver and custom constraints G and A.
+//
 func CplCustomMatrix(F ConvexProg, c *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
 	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {

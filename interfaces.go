@@ -6,7 +6,6 @@
 // version. See the COPYING tile included in this archive.
 
 
-// Convex programming package, a port of CVXOPT python package
 package cvx
 
 import (
@@ -166,17 +165,9 @@ type MatrixVarH interface {
 }
 
 
-
-// Empty interface for 
-type Variable interface {
-	// Convert to string
-	String() string
-}
-
 // MatrixVariable interface for any type used to represent primal variables
 // and the dual variables as something else than one-column float matrices.
 //
-// If u is an object of type implementing MatrixVariable interface, then
 type MatrixVariable interface {
 	// Provide internal matrix value
 	Matrix() *matrix.FloatMatrix

@@ -341,27 +341,26 @@ func (a *epiMatrixA) Af(u, v MatrixVariable, alpha, beta float64, trans la.Optio
 }
 
 
-//    Solves a convex optimization problem with a linear objective
+// Solves a convex optimization problem with a linear objective
 //
-//        minimize    f0(x)
-//        subject to  fk(x) <= 0, k = 1, ..., mnl
-//                    G*x   <= h
-//                    A*x    = b.                      
+//       minimize    f0(x)
+//       subject to  fk(x) <= 0, k = 1, ..., mnl
+//                   G*x   <= h
+//                   A*x    = b.                      
 //
-//    f is vector valued, convex and twice differentiable.  The linear 
-//    inequalities are with respect to a cone C defined as the Cartesian 
-//    product of N + M + 1 cones:
+// f is vector valued, convex and twice differentiable.  The linear 
+// inequalities are with respect to a cone C defined as the Cartesian 
+// product of N + M + 1 cones:
 //    
 //        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 //
-//    The first cone C_0 is the nonnegative orthant of dimension ml.  The 
-//    next N cones are second order cones of dimension mq[0], ..., mq[N-1].
-//    The second order cone of dimension m is defined as
+// The first cone C_0 is the nonnegative orthant of dimension ml.  The 
+// next N cones are second order cones of dimension mq[0], ..., mq[N-1].
+// The second order cone of dimension m is defined as
 //    
 //        { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
 //
-//    The next M cones are positive semidefinite cones of order ms[0], ...,
-//    ms[M-1] >= 0.  
+// The next M cones are positive semidefinite cones of order ms[0], ..., ms[M-1] >= 0.  
 //
 func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions) (sol *Solution, err error) {
 
@@ -470,8 +469,15 @@ func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, s
 }
 
 
-
-
+// Solves a convex optimization problem with a linear objective
+//
+//       minimize    f0(x)
+//       subject to  fk(x) <= 0, k = 1, ..., mnl
+//                   G*x   <= h
+//                   A*x    = b.                      
+//
+// using custom solver for KKT equations.
+//
 func CpCustomKKT(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
 	kktsolver KKTSolver, solopts *SolverOptions) (sol *Solution, err error) {
 
@@ -559,7 +565,15 @@ func CpCustomKKT(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.Dimens
 }
 
 
-
+// Solves a convex optimization problem with a linear objective
+//
+//       minimize    f0(x)
+//       subject to  fk(x) <= 0, k = 1, ..., mnl
+//                   G*x   <= h
+//                   A*x    = b.                      
+//
+// using custom solver for KKT equations and constraint equations G and A.
+//
 func CpCustomMatrix(F ConvexProg, G MatrixG, h *matrix.FloatMatrix, A MatrixA,
 	b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTSolver,
 	solopts *SolverOptions) (sol *Solution, err error) {

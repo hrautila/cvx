@@ -38,9 +38,9 @@ func setDiagonal(M *matrix.FloatMatrix, srow, scol, erow, ecol int, val float64)
 // given H, Df, W, where GG = [Df; G], and (2) returns a function for 
 // solving 
 //    
-// [ H     A'   GG'   ]   [ ux ]   [ bx ]
-// [ A     0    0     ] * [ uy ] = [ by ].
-// [ GG    0   -W'*W  ]   [ uz ]   [ bz ]
+//  [ H     A'   GG'   ]   [ ux ]   [ bx ]
+//  [ A     0    0     ] * [ uy ] = [ by ].
+//  [ GG    0   -W'*W  ]   [ uz ]   [ bz ]
 //    
 // H is n x n,  A is p x n, Df is mnl x n, G is N x n where
 // N = dims['l'] + sum(dims['q']) + sum( k**2 for k in dims['s'] ).
@@ -77,9 +77,7 @@ func kktLdl(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatri
 			pack(g, K, dims, &la_.IOpt{"mnl", mnl}, &la_.IOpt{"offsety", k*ldK+n+p})
 		}
 		setDiagonal(K, n+p, n+n, ldK, ldK, -1.0)
-		//fmt.Printf("K=\n%v\n", K)
 		err = lapack.Sytrf(K, ipiv)
-		//fmt.Printf("sytrf: K=\n%v\n", K)
 		if err != nil { return nil, err }
 
 		solve := func(x, y, z *matrix.FloatMatrix) (err error) {
@@ -98,7 +96,6 @@ func kktLdl(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatri
 			blas.Copy(y, u, &la_.IOpt{"offsety", n})
 			err = scale(z, W, true, true)
 			if err != nil { return }
-			//fmt.Printf("kkt-ldl solve post-scale z=\n%v\n", z.ToString("%.17f"))
 			err = pack(z, u, dims, &la_.IOpt{"mnl", mnl}, &la_.IOpt{"offsety", n+p})
 			if err != nil { return }
 
@@ -108,41 +105,11 @@ func kktLdl(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatri
 			blas.Copy(u, x, &la_.IOpt{"n", n})
 			blas.Copy(u, y, &la_.IOpt{"n", p}, &la_.IOpt{"offsetx", n})
 			err = unpack(u, z, dims, &la_.IOpt{"mnl", mnl}, &la_.IOpt{"offsetx", n+p})
-			//fmt.Printf("kkt-ldl solve end x=\n%v\n", x.ToString("%.17f"))
-			//fmt.Printf("kkt-ldl solve end z=\n%v\n", z.ToString("%.17f"))
 			return 
 		}
 		return solve, err
 	}
 	return factor, nil
-}
-
-
-type kktLdlSolver struct {
-	p, n, ldK, mnl int
-	K, u, g *matrix.FloatMatrix
-	ipiv []int32
-	G, A *matrix.FloatMatrix
-	dims *sets.DimensionSet
-	W *sets.FloatMatrixSet
-	//H, Df *matrix.FloatMatrix
-}
-
-// not really needed. 
-func createLdlSolver(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatrix, mnl int) *kktLdlSolver {
-	kkt := new(kktLdlSolver)
-	
-	kkt.p, kkt.n = A.Size()
-	kkt.ldK = kkt.n + kkt.p + mnl + dims.Sum("l", "q") + dims.SumPacked("s")
-	kkt.K = matrix.FloatZeros(kkt.ldK, kkt.ldK)
-	kkt.ipiv = make([]int32, kkt.ldK)
-	kkt.u = matrix.FloatZeros(kkt.ldK, 1)
-	kkt.g = matrix.FloatZeros(kkt.mnl+G.Rows(), 1)
-	kkt.G = G
-	kkt.A = A
-	kkt.dims = dims
-	kkt.mnl = mnl
-	return kkt
 }
 
 

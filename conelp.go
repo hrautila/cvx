@@ -99,20 +99,9 @@ func checkConeLpDimensions(dims *sets.DimensionSet) error {
 // The next M cones are positive semidefinite cones of order ms[0], ...,
 // ms[M-1] >= 0.  
 //
-func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
+func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions,
+	primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
-	/* saved
-	if G == nil {
-		err = errors.New("'G' must be non-nil matrix.")
-		return
-	}
-	if A == nil {
-		A = matrix.FloatZeros(0, c.Rows())
-	}
-	if b == nil {
-		b = matrix.FloatZeros(0, 1)
-	}
-	 */
 
 	if c == nil || c.Cols() > 1 {
 		err = errors.New("'c' must be matrix with 1 column")
@@ -215,7 +204,7 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 	return conelp_problem(c_e, G_e, h, A_e, b_e, dims, kktsolver, solopts, primalstart, dualstart)
 }
 
-// Solves a pair of primal and dual cone programs using custom KKT solver.
+// Solves a pair of primal and dual cone programs  using custom KKT solver.
 //
 // The customize solver can provide a routine for solving linear equations (`KKT systems')
 //        
@@ -223,53 +212,7 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 //            [ A  0   0    ] [ uy ] = [ by ].
 //            [ G  0  -W'*W ] [ uz ]   [ bz ]
 //
-// W is a scaling matrix, a block diagonal mapping 
-//
-//           W*z = ( W0*z_0, ..., W_{N+M}*z_{N+M} ) 
-//
-// defined as follows.  
-//
-// ** For the 'l' block (W_0): 
-//
-//           W_0 = diag(d), 
-//
-// with d a positive vector of length ml. 
-//
-// ** For the 'q' blocks (W_{k+1}, k = 0, ..., N-1): 
-//                           
-//           W_{k+1} = beta_k * ( 2 * v_k * v_k' - J )
-//
-// where beta_k is a positive scalar, v_k is a vector in R^mq[k] 
-// with v_k[0] > 0 and v_k'*J*v_k = 1, and J = [1, 0; 0, -I].
-//
-// ** For the 's' blocks (W_{k+N}, k = 0, ..., M-1):
-//
-//           W_k * x = vec(r_k' * mat(x) * r_k) 
-//
-// where r_k is a nonsingular matrix of order ms[k], and mat(x) is 
-// the inverse of the vec operation.
-// 
-// The argument kktsolver is a function that will be called as f = kktsolver(W),
-// where W is a FloatMatrixSet that contains the parameters of the scaling:
-//
-//  - W['d'] is a positive float matrix of size (ml,1).
-//  - W['di'] is a positive float matrix with the elementwise inverse of W['d'].
-//  - W['beta'] is a matrix of value [ beta_0, ..., beta_{N-1} ]
-//  - W['v'] is a list [ v_0, ..., v_{N-1} ]  of float matrices
-//  - W['r'] is a list [ r_0, ..., r_{M-1} ]  of float matrices
-//  - W['rti'] is a list [ rti_0, ..., rti_{M-1} ], with rti_k the inverse of the transpose of r_k.
-//
-// The call f = kktsolver(W) should return a function f that solves 
-// the KKT system by f(x, y, z).  On entry, x, y, z contain the 
-// righthand side bx, by, bz.  On exit, they contain the solution, 
-// with uz scaled: the argument z contains W*uz.  In other words,
-// on exit, x, y, z are the solution of
-//
-//            [ 0  A'  G'*W^{-1} ] [ ux ]   [ bx ]
-//            [ A  0   0         ] [ uy ] = [ by ].
-//            [ G  0  -W'        ] [ uz ]   [ bz ]
-//
-func ConeLpKKT(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
+func ConeLpCustomKKT(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
 	kktsolver KKTConeSolver, solopts *SolverOptions, primalstart,
 	dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 
@@ -342,12 +285,10 @@ func ConeLpKKT(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet,
 	return conelp_problem(mc, mG, h, mA, mb, dims, kktsolver, solopts, primalstart, dualstart)
 }
 
-//  Solves a pair of primal and dual cone programs using custom KKT solver and custom
-//  matrices G and A.
+// Solves a pair of primal and dual cone programs using custom KKT solver and constraint
+// matrices G, A
 //
-//	G must implement interface MatrixG and A must implement interface MatrixA.
-//
-func ConeLpCustom(c *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
+func ConeLpCustomMatrix(c *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
 	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver,
 	solopts *SolverOptions, primalstart, dualstart *sets.FloatMatrixSet) (sol *Solution, err error) {
 

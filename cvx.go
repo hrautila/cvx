@@ -6,7 +6,6 @@
 // version. See the COPYING tile included in this archive.
 
 
-// Convex programming package, a port of CVXOPT python package
 package cvx
 
 import (
@@ -72,13 +71,13 @@ const (
 )
 
 
-// If the exit status is 'Optimal', then the primal and dual
+// If the exit status is Optimal, then the primal and dual
 // infeasibilities are guaranteed to be less than 
 // SolversOptions.FeasTol (default 1e-7).  The gap is less than
 // SolversOptions.AbsTol (default 1e-7) or the relative gap is 
 // less than SolversOptions.RelTol (defaults 1e-6).     
 //
-// Termination with status 'Unknown' indicates that the algorithm 
+// Termination with status Unknown indicates that the algorithm 
 // failed to find a solution that satisfies the specified tolerances.
 // In some cases, the returned solution may be fairly accurate.  If
 // the primal and dual infeasibilities, the gap, and the relative gap
@@ -127,7 +126,8 @@ type SolverOptions struct {
 	Debug bool
 	// Refinement count
 	Refinement int
-	// KKT solver function name; 'ldl', 'ldl2', 'qr', 'chol', 'chol2'
+	// KKT solver function name; "ldl", "ldl2", "qr", "chol", "chol2"
+	// NOTE: currently all solvers mapped to "ldl".
 	KKTSolverName string
 }
 

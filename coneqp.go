@@ -63,7 +63,8 @@ func checkConeQpDimensions(dims *sets.DimensionSet) error {
 // The next M cones are positive semidefinite cones of order ms[0], ...,
 // ms[M-1] >= 0.  
 //
-func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
+func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts *SolverOptions,
+	initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 	if q == nil || q.Cols() != 1 {
 		err = errors.New("'q' must be non-nil matrix with one column")
@@ -223,7 +224,8 @@ func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solop
 //            [ G   0   -W'       ] [ uz ]   [ bz ]
 //
 //
-func ConeQpKKT(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver, solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
+func ConeQpCustomKKT(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver,
+	solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
 	if q == nil || q.Cols() != 1 {
 		err = errors.New("'q' must be non-nil matrix with one column")
@@ -314,7 +316,7 @@ func ConeQpKKT(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, kk
 // P must implement interface MatrixP, G must implement interface MatrixG
 // and A must implement interface MatrixA.
 //
-func ConeQpCustom(P MatrixP, q *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
+func ConeQpCustomMatrix(P MatrixP, q *matrix.FloatMatrix, G MatrixG, h *matrix.FloatMatrix,
 	A MatrixA, b *matrix.FloatMatrix, dims *sets.DimensionSet, kktsolver KKTConeSolver,
 	solopts *SolverOptions, initvals *sets.FloatMatrixSet) (sol *Solution, err error) {
 
