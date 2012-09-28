@@ -1,10 +1,17 @@
 
+// Copyright (c) Harri Rautila, 2012
+
+// This file is part of github.com/hrautila/cvx package. 
+// It is free software, distributed under the terms of GNU Lesser General Public 
+// License Version 3, or any later version. See the COPYING tile included in this archive.
+
+// Package for saving and check execution variables at checkpoints.
 package checkpnt
 
 import (
-	"github.com/hrautila/go.opt/matrix"
-	"github.com/hrautila/go.opt/linalg/blas"
-	"github.com/hrautila/go.opt/cvx/sets"
+	"github.com/hrautila/matrix"
+	"github.com/hrautila/linalg/blas"
+	"github.com/hrautila/cvx/sets"
 	"fmt"
 	"os"
 	"bufio"
