@@ -6,13 +6,11 @@
 package cvx
 
 import (
-	"fmt"
 	"testing"
 )
 
 
-func TestCompile(t *testing.T) {
-	fmt.Printf("CVX compiles OK\n")
+func TestEmpty(t *testing.T) {
 }
 
 // Local Variables:
