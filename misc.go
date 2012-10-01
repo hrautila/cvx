@@ -1281,6 +1281,41 @@ func pack(x, y *matrix.FloatMatrix, dims *sets.DimensionSet, opts ...la_.Option)
 	return
 }
 
+// In-place version of pack(), which also accepts matrix arguments x.
+// The columns of x are elements of S, with the 's' components stored
+// in unpacked storage.  On return, the 's' components are stored in
+// packed storage and the off-diagonal entries are scaled by sqrt(2).
+//
+func pack2(x *matrix.FloatMatrix, dims *sets.DimensionSet, mnl int) (err error) {
+	if len(dims.At("s")) == 0 {
+		return nil
+	}
+
+	const sqrt2 = 1.41421356237309504880
+
+	iu := mnl + dims.Sum("l", "q")
+	ip := iu
+	row := matrix.FloatZeros(1, x.Cols())
+	//fmt.Printf("x.size = %d %d\n", x.Rows(), x.Cols())
+	for _, n := range dims.At("s") {
+		for k := 0; k < n; k++ {
+			cnt := n - k
+			row = x.GetRow(iu+(n+1)*k, row)
+			//fmt.Printf("%02d: %v\n", iu+(n+1)*k, x.FloatArray())
+			x.SetRow(ip, row)
+			for i := 1; i < n - k; i++ {
+				row = x.GetRow(iu+(n+1)*k+i, row)
+				//fmt.Printf("%02d: %v\n", iu+(n+1)*k+i, x.FloatArray())
+				x.SetRow(ip+i, row.Scale(sqrt2))
+			}
+			ip += cnt
+		}
+		iu += n*n
+	}
+	return nil
+}
+
+
 /*
      The vector x is an element of S, with the 's' components stored
      in unpacked storage and off-diagonal entries scaled by sqrt(2).
