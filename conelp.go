@@ -210,7 +210,7 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 	var factor kktFactor
 	//var kktsolver CustomKKT = nil
 	var kktsolver KKTConeSolver = nil
-	if kktfunc, ok := solvers[solvername]; ok {
+	if kktfunc, ok := lpsolvers[solvername]; ok {
 		// kkt function returns us problem spesific factor function.
 		factor, err = kktfunc(G, dims, A, 0)
 		kktsolver = func(W *sets.FloatMatrixSet) (KKTFunc, error) {
@@ -428,6 +428,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	feasTolerance := FEASTOL
 	absTolerance := ABSTOL
 	relTolerance := RELTOL
+	maxIter := MAXITERS
 	if solopts.FeasTol > 0.0 {
 		feasTolerance = solopts.FeasTol
 	}
@@ -437,7 +438,9 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	if solopts.RelTol > 0.0 {
 		relTolerance = solopts.RelTol
 	}
-
+	if solopts.MaxIter > 0 {
+		maxIter = solopts.MaxIter
+	}
 	if err = checkConeLpDimensions(dims); err != nil {
 		return 
 	}
@@ -568,10 +571,10 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	dkappa := matrix.FloatValue(0.0)
 	dtau := matrix.FloatValue(0.0)
 
-	//checkpnt.AddVerifiable("x", x)
-	//checkpnt.AddMatrixVar("s", s)
+	checkpnt.AddVerifiable("x", x)
+	checkpnt.AddMatrixVar("s", s)
 	checkpnt.AddMatrixVar("z", z)
-	//checkpnt.AddVerifiable("dx", dx)
+	checkpnt.AddVerifiable("dx", dx)
 	checkpnt.AddMatrixVar("ds", ds)
 	checkpnt.AddMatrixVar("dz", dz)
 
@@ -881,7 +884,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 	checkpnt.AddFloatVar("pres", &pres)
 	checkpnt.AddFloatVar("dres", &dres)
 
-	for iter := 0; iter < solopts.MaxIter+1; iter++ {
+	for iter := 0; iter < maxIter+1; iter++ {
 		checkpnt.MajorNext()
 		checkpnt.Check("loop-start", 100)
 
@@ -963,7 +966,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 
 		if (pres <= feasTolerance && dres <= feasTolerance &&
 			(gap <= absTolerance || (!math.IsNaN(relgap) && relgap <= relTolerance))) ||
-			iter == solopts.MaxIter {
+			iter == maxIter {
 			// done
 			x.Scal(1.0/tau.Float())
 			y.Scal(1.0/tau.Float())
@@ -977,7 +980,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 			}
 			ts, _ = maxStep(s, dims, 0, nil)
 			tz, _ = maxStep(z, dims, 0, nil)
-			if iter == solopts.MaxIter {
+			if iter == maxIter {
 				// MaxIterations exceeded
 				if solopts.ShowProgress {
 					fmt.Printf("No solution. Max iterations exceeded\n")
