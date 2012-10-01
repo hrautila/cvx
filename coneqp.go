@@ -12,6 +12,7 @@ import (
 	"github.com/hrautila/linalg/blas"
 	"github.com/hrautila/matrix"
 	"github.com/hrautila/cvx/sets"
+	"github.com/hrautila/cvx/checkpnt"
 	"errors"
 	"fmt"
 	"math"
@@ -163,7 +164,7 @@ func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solop
 	solvername := solopts.KKTSolverName
 	if len(solvername) == 0 {
 		if len(dims.At("q")) > 0 || len(dims.At("s")) > 0 {
-			solvername = "qr"
+			solvername = "ldl"
 		} else {
 			solvername = "chol2"
 		}
@@ -408,6 +409,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 	feasTolerance := FEASTOL
 	absTolerance := ABSTOL
 	relTolerance := RELTOL
+	maxIter := MAXITERS
 	if solopts.FeasTol > 0.0 {
 		feasTolerance = solopts.FeasTol
 	}
@@ -417,7 +419,9 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 	if solopts.RelTol > 0.0 {
 		relTolerance = solopts.RelTol
 	}
-
+	if solopts.MaxIter > 0 {
+		maxIter = solopts.MaxIter
+	}
 	if q == nil {
 		err = errors.New("'q' must be non-nil MatrixVariable with one column")
 		return
@@ -503,6 +507,8 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 
 	ws3 := matrix.FloatZeros(cdim, 1)
 	wz3 := matrix.FloatZeros(cdim, 1)
+	checkpnt.AddMatrixVar("ws3", ws3)
+	checkpnt.AddMatrixVar("wz3", wz3)
 
 	// 
 	res := func(ux, uy MatrixVariable, uz, us *matrix.FloatMatrix, vx, vy MatrixVariable, vz, vs *matrix.FloatMatrix, W *sets.FloatMatrixSet, lmbda *matrix.FloatMatrix) (err error) {
@@ -515,6 +521,8 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
         //      vs := vs - lmbda o (uz + us).
 
         // vx := vx - P*ux - A'*uy - G'*W^{-1}*uz
+		minor := checkpnt.MinorTop()
+		checkpnt.Check("00res", minor)
 		fP(ux, vx, -1.0, 1.0)
 		fA(uy, vx, -1.0, 1.0, la.OptTrans)
 		blas.Copy(uz, wz3)
@@ -522,6 +530,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 		fG(&matrixVar{wz3}, vx, -1.0, 1.0, la.OptTrans)
         // vy := vy - A*ux
         fA(ux, vy, -1.0, 1.0, la.OptNoTrans)
+		checkpnt.Check("50res", minor)
 
         // vz := vz - G*ux - W'*us
         fG(ux, &matrixVar{vz}, -1.0, 1.0, la.OptNoTrans)
@@ -534,6 +543,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
         blas.AxpyFloat(uz, ws3, 1.0)
         sprod(ws3, lmbda, dims, 0, la.OptDiag)
         blas.AxpyFloat(ws3, vs, -1.0)
+		checkpnt.Check("90res", minor)
 		return 
 	}
 
@@ -607,6 +617,11 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 	s = matrix.FloatZeros(cdim, 1)
 	z = matrix.FloatZeros(cdim, 1)
 
+	checkpnt.AddVerifiable("x", x)
+	checkpnt.AddVerifiable("y", y)
+	checkpnt.AddMatrixVar("s", s)
+	checkpnt.AddMatrixVar("z", z)
+
 	var ts, tz, nrms, nrmz float64
 
 	if initvals == nil {
@@ -630,6 +645,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			W.Append("r", matrix.FloatIdentity(n))
 			W.Append("rti", matrix.FloatIdentity(n))
 		}
+		checkpnt.AddScaleVar(W)
 		f, err = kktsolver(W)
 		if err != nil {
 			s := fmt.Sprintf("kkt error: %s", err)
@@ -641,21 +657,24 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 		//     [ P   A'  G' ]   [ x ]   [ -q ]
 		//     [ A   0   0  ] * [ y ] = [  b ].
 		//     [ G   0  -I  ]   [ z ]   [  h ]
-		x = q.Copy()
+		mCopy(q, x)
 		x.Scal(-1.0)
-		y = b.Copy()
-		z = h.Copy()
+		mCopy(b, y)
+		blas.Copy(h, z)
+		checkpnt.Check("00init", 1)
 		err = f(x, y, z)
 		if err != nil {
 			s := fmt.Sprintf("kkt error: %s", err)
 			err = errors.New("4: Rank(A) < p or Rank([P; G; A]) < n : "+s)
 			return 
 		}
-		s = z.Copy()
+		blas.Copy(z, s)
 		blas.ScalFloat(s, -1.0)
+		checkpnt.Check("05init", 1)
 
 		nrms = snrm2(s, dims, 0)
 		ts,_ = maxStep(s, dims, 0, nil)
+		//fmt.Printf("nrms = %.7f, ts = %.7f\n", nrms, ts)
 		if ts >= -1e-8 * math.Max(nrms, 1.0) {
 			// a = 1.0 + ts  
 			a := 1.0 + ts
@@ -677,6 +696,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 
 		nrmz = snrm2(z, dims, 0)
 		tz,_ = maxStep(z, dims, 0, nil)
+		//fmt.Printf("nrmz = %.7f, tz = %.7f\n", nrmz, tz)
 		if tz >= -1e-8 * math.Max(nrmz, 1.0) {
 			a := 1.0 + tz
 			is := make([]int, 0)
@@ -754,10 +774,37 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 	sigs = matrix.FloatZeros(dims.Sum("s"), 1)
 	sigz = matrix.FloatZeros(dims.Sum("s"), 1)
 
+	checkpnt.AddVerifiable("rx", rx)
+	checkpnt.AddVerifiable("ry", ry)
+	checkpnt.AddVerifiable("dx", dx)
+	checkpnt.AddVerifiable("dy", dy)
+	//checkpnt.AddMatrixVar("rs", rs)
+	checkpnt.AddMatrixVar("rz", rz)
+	checkpnt.AddMatrixVar("ds", ds)
+	checkpnt.AddMatrixVar("dz", dz)
+	checkpnt.AddMatrixVar("lmbda", lmbda)
+	checkpnt.AddMatrixVar("lmbdasq", lmbdasq)
+
+	//var resx, resy, resz, step, sigma, mu, eta float64
+	//var gap, pcost, dcost, relgap, pres, dres, f0 float64
+	checkpnt.AddFloatVar("resx", &resx)
+	checkpnt.AddFloatVar("resy", &resy)
+	checkpnt.AddFloatVar("resz", &resz)
+	checkpnt.AddFloatVar("step", &step)
+	checkpnt.AddFloatVar("gap", &gap)
+	checkpnt.AddFloatVar("dcost", &dcost)
+	checkpnt.AddFloatVar("pcost", &pcost)
+	checkpnt.AddFloatVar("dres", &dres)
+	checkpnt.AddFloatVar("pres", &pres)
+	checkpnt.AddFloatVar("relgap", &relgap)
+	checkpnt.AddFloatVar("sigma", &sigma)
+
 	var WS fVarClosure
 
 	gap = sdot(s, z, dims, 0)
-	for iter := 0; iter < solopts.MaxIter+1; iter++ {
+	for iter := 0; iter < maxIter+1; iter++ {
+		checkpnt.MajorNext()
+		checkpnt.Check("loopstart", 10)
 
         // f0 = (1/2)*x'*P*x + q'*x + r and  rx = P*x + q + A'*y + G'*z.
         mCopy(q, rx)
@@ -807,11 +854,12 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
             fmt.Printf("%2d: % 8.4e % 8.4e % 4.0e% 7.0e% 7.0e\n",
 				iter, pcost, dcost, gap, pres, dres)
 		}
+		checkpnt.Check("stoptest", 100)
 
 		
 		if pres <= feasTolerance && dres <= feasTolerance &&
 			( gap <= absTolerance || (!math.IsNaN(relgap) && relgap <= relTolerance)) ||
-			iter == solopts.MaxIter {
+			iter == maxIter {
 
 			ind := dims.Sum("l", "q")
 			for _, m := range dims.At("s") {
@@ -821,7 +869,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			}
 			ts,_ = maxStep(s, dims, 0, nil)
 			tz,_ = maxStep(z, dims, 0, nil)
-			if iter == solopts.MaxIter {
+			if iter == maxIter {
 				// terminated on max iterations.
 				sol.Status = Unknown
 				err = errors.New("Terminated (maximum iterations reached)")
@@ -857,6 +905,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
         // lmbdasq = lambda o lambda.
 		if iter == 0 {
 			W, err = computeScaling(s, z, lmbda, dims, 0)
+			checkpnt.AddScaleVar(W)
 		}
 		ssqr(lmbdasq, lmbda, dims, 0)
 
@@ -918,6 +967,8 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
             // On entry, x, y, z, s  contains bx, by, bz, bs. 
             // On exit they contain x, y, z, s.
             
+			minor := checkpnt.MinorTop()
+			checkpnt.Check("f4_no_ir_start", minor)
             // s := lmbda o\ s 
             //    = lmbda o\ bs
 			sinv(s, lmbda, dims, 0)
@@ -928,14 +979,17 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			scale(ws3, W, true, false)
 			blas.AxpyFloat(ws3, z, -1.0)
 
+			checkpnt.Check("f4_no_ir_f3", minor+50)
 			err := f3(x, y, z)
 			if err != nil {
 				return err
 			}
+			checkpnt.Check("f4_no_ir_f3", minor+60)
 
             // s := s - z 
             //    = lambda o\ bs - uz.
 			blas.AxpyFloat(z, s, -1.0)
+			checkpnt.Check("f4_no_ir_f3", minor+90)
 			return nil
 		}
 
@@ -945,16 +999,26 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 				WS.wy = y.Copy()
 				WS.ws = matrix.FloatZeros(cdim, 1)
 				WS.wz = matrix.FloatZeros(cdim, 1)
+				checkpnt.AddVerifiable("wx", WS.wx)
+				checkpnt.AddVerifiable("wy", WS.wy)
+				checkpnt.AddMatrixVar("ws", WS.ws)
+				checkpnt.AddMatrixVar("wz", WS.wz)
 			}
 			if refinement > 0 {
 				WS.wx2 = q.Copy()
 				WS.wy2 = y.Copy()
 				WS.ws2 = matrix.FloatZeros(cdim, 1)
 				WS.wz2 = matrix.FloatZeros(cdim, 1)
+				checkpnt.AddVerifiable("wx2", WS.wx2)
+				checkpnt.AddVerifiable("wy2", WS.wy2)
+				checkpnt.AddMatrixVar("ws2", WS.ws2)
+				checkpnt.AddMatrixVar("wz2", WS.wz2)
 			}
 		}
 
 		f4 := func(x, y MatrixVariable, z, s *matrix.FloatMatrix)(err error) {
+			minor := checkpnt.MinorTop()
+			checkpnt.Check("f4start", minor)
 			err = nil
 			if refinement > 0 || solopts.Debug {
 				mCopy(x, WS.wx)
@@ -962,19 +1026,31 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 				blas.Copy(z, WS.wz)
 				blas.Copy(s, WS.ws)
 			}
+			
+			checkpnt.MinorPush(minor+100)
 			err = f4_no_ir(x, y, z, s)
+			checkpnt.MinorPop()
+
 			for i := 0; i < refinement; i++ {
 				mCopy(WS.wx, WS.wx2)
 				mCopy(WS.wy, WS.wy2)
 				blas.Copy(WS.wz, WS.wz2)
 				blas.Copy(WS.ws, WS.ws2)
+
+				checkpnt.MinorPush(minor+(i+1)*300)
 				res(x, y, z, s, WS.wx2, WS.wy2, WS.wz2, WS.ws2, W, lmbda)
+				checkpnt.MinorPop()
+
+				checkpnt.MinorPush(minor+(i+1)*500)
 				f4_no_ir(WS.wx2, WS.wy2, WS.wz2, WS.ws2)
+				checkpnt.MinorPop()
+
 				WS.wx2.Axpy(x, 1.0)
 				WS.wy2.Axpy(y, 1.0)
 				blas.AxpyFloat(WS.wz2, z, 1.0)
 				blas.AxpyFloat(WS.ws2, s, 1.0)
 			}
+			checkpnt.Check("f4end", minor+1500)
 			return
 		}
 		
@@ -994,6 +1070,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
             //                         + sigma*mu*e (i=1) where dsa, dza
             //                         are the solution for i=0. 
  
+			minor_base := (i+1)*2000
             // ds = -lmbdasq + sigma * mu * e  (if i is 0)
             //    = -lmbdasq - dsa o dza + sigma * mu * e  (if i is 1), 
             //    where ds, dz are solution for i is 0.
@@ -1017,6 +1094,8 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 				ind2 += m
 			}
 
+			checkpnt.Check("00loop01", minor_base)
+
 			// (dx, dy, dz) := -(1 - eta) * (rx, ry, rz)
 			//blas.ScalFloat(dx, 0.0)
 			//blas.AxpyFloat(rx, dx, -1.0+eta)
@@ -1032,7 +1111,9 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			//fmt.Printf("ds=\n%v\n", ds.ToString("%.17f"))
 			//fmt.Printf("dz=\n%v\n", dz.ToString("%.17f"))
 			//fmt.Printf("== Entering f4 %d\n", i)
+			checkpnt.MinorPush(minor_base)
 			err = f4(dx, dy, dz, ds)
+			checkpnt.MinorPop()
 			if err != nil {
 				if iter == 0 {
 					s := fmt.Sprintf("kkt error: %s", err)
@@ -1064,6 +1145,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
             // dsk, dzk.  The eigenvalues are stored in sigs, sigz. 
 			scale2(lmbda, ds, dims, 0, false)
 			scale2(lmbda, dz, dims, 0, false)
+			checkpnt.Check("maxstep", minor_base+1500)
 			if i == 0 {
 				ts,_ = maxStep(ds, dims, 0, nil)
 				tz,_ = maxStep(dz, dims, 0, nil)
@@ -1091,6 +1173,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 
 		}
 
+		checkpnt.Check("updatexy", 8000)
 		dx.Axpy(x, step)
 		dy.Axpy(y, step)
 		//fmt.Printf("x=\n%v\n", x.ConvertToString())
@@ -1117,6 +1200,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			dz.SetIndex(ind, 1.0+dz.GetIndex(ind))
 			ind += m
 		}
+		checkpnt.Check("updatedsdz", 8010)
 
         // ds := H(lambda)^{-1/2} * ds and dz := H(lambda)^{-1/2} * dz.
         // 
@@ -1128,6 +1212,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
         // diag(lmbda_k)^{1/2} * Qz * diag(lmbda_k)^{1/2} 
 		scale2(lmbda, ds, dims, 0, true)
 		scale2(lmbda, dz, dims, 0, true)
+		checkpnt.Check("scale2", 8030)
 
         // sigs := ( e + step*sigs ) ./ lambda for 's' blocks.
         // sigz := ( e + step*sigz ) ./ lambda for 's' blocks.
@@ -1157,7 +1242,9 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 			ind3 += m
 		}
 		
+		checkpnt.Check("updatescaling", 8050)
 		err = updateScaling(W, lmbda, ds, dz)
+		checkpnt.Check("afterscaling", 8060)
 
         // Unscale s, z, tau, kappa (unscaled variables are used only to 
         // compute feasibility residuals).
@@ -1186,6 +1273,7 @@ func coneqp_solver(P MatrixVarP, q MatrixVariable, G MatrixVarG, h *matrix.Float
 		scale(z, W, false, true)
 
 		gap = blas.DotFloat(lmbda, lmbda)
+		checkpnt.Check("eol", 8900)
 		//fmt.Printf("== gap = %.17f\n", gap)
 	}
 	return
