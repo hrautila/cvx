@@ -458,7 +458,7 @@ func Cp(F ConvexProg, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, s
 	solvername := solopts.KKTSolverName
 	if len(solvername) == 0 {
 		if len(dims.At("q")) > 0 || len(dims.At("s")) > 0 {
-			solvername = "qr"
+			solvername = "chol"
 		} else {
 			solvername = "chol2"
 		}
