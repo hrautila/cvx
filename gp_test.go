@@ -32,6 +32,7 @@ func TestGp(t *testing.T) {
 	var solopts SolverOptions
 	solopts.MaxIter = 40
 	solopts.ShowProgress = false
+	solopts.KKTSolverName = "ldl"
 	sol, err := Gp(K, F, g, nil, nil, nil, nil, &solopts)
 	if sol != nil && sol.Status == Optimal {
 		x := sol.Result.At("x")[0]
