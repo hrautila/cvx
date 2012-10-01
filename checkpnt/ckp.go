@@ -201,27 +201,23 @@ func PanicVar(name string, ispanic bool) {
 	}
 }
 
-// Add float variable as check point variable.
+// Add or update float variable as check point variable.
 func AddFloatVar(name string, fptr *float64) {
 	if ! active {
 		return
 	}
-	if _, ok := variables[name]; ! ok {
-		variables[name] = &dataPoint{vvar:&fVariable{fptr}}
-	}
+	variables[name] = &dataPoint{vvar:&fVariable{fptr}}
 }
 
-// Add float variable as check point variable.
+// Add or update float variable as check point variable.
 func AddVerifiable(name string, vvar Verifiable) {
 	if ! active {
 		return
 	}
-	if _, ok := variables[name]; ! ok {
-		variables[name] = &dataPoint{vvar:vvar}
-	}
+	variables[name] = &dataPoint{vvar:vvar}
 }
 
-// Add scaling matrix set to checkpoint variables.
+// Add or update scaling matrix set to checkpoint variables.
 func AddScaleVar(w *sets.FloatMatrixSet) {
 	if ! active {
 		return
@@ -231,19 +227,11 @@ func AddScaleVar(w *sets.FloatMatrixSet) {
 		mset := w.At(key)
 		for k, m := range mset {
 			name := fmt.Sprintf("%s.%d", key, k)
-			if _, ok := variables[name]; ! ok {
-				variables[name] = &dataPoint{vvar:&mVariable{m}}
-			}
+			variables[name] = &dataPoint{vvar:&mVariable{m}}
 		}
 	}
 }
 
-func UpdateMatrixVar(name string, mtx *matrix.FloatMatrix) {
-	if ! active {
-		return
-	}
-	variables[name] = &dataPoint{mtx:mtx}
-}
 
 // Print checkpoint variables.
 func PrintVariables() {
@@ -362,25 +350,33 @@ func readCkpData(name string, minor int) (data *dataTable, ckp *checkpoint, err 
 	linereader := bufio.NewReader(file)
 	reading := true
 	lineno := 0
+	var lerr error = nil
 	for reading {
-		line, _, lerr := linereader.ReadLine()
-		if lerr != nil {
-			reading = false
-			continue
+		line := ""
+		isPrefix := true
+		for isPrefix {
+			var data []byte
+			data, isPrefix, lerr = linereader.ReadLine()
+			if lerr != nil {
+				reading = false
+				goto ready
+			}
+			line += string(data)
 		}
 		if lineno == 0 {
-			index := strings.Index(string(line), ":")
-			refname = strings.Trim(string(line[index+1:]), " \n")
+			index := strings.Index(line, ":")
+			refname = strings.Trim(line[index+1:], " \n")
 			if refname != name {
 				err = errors.New(fmt.Sprintf("expecting sp: %s, found %s", name, refname))
 				return
 			}
 		} else {
-			vartype := parseLine(string(line), &refdata)
+			vartype := parseLine(line, &refdata)
 			_ = vartype
 		}
 		lineno += 1
 	}
+ready:
 	data = &refdata
 	ckp = &checkpoint{name:name, filepath:path, major:spmajor, minor:minor}
 	return
