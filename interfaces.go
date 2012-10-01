@@ -244,7 +244,8 @@ func (u *matrixVar) Verify(dataline string) float64 {
 func (u *matrixVar) ShowError(dataline string)  {
 	refval, _ := matrix.FloatParse(dataline)
 	em := matrix.Minus(u.val, refval)
-	fmt.Printf("my data | ref.data | diff \n%v\n", em.ToString("%.4e"))
+	r, _ := matrix.FloatMatrixStacked(matrix.StackRight, u.val, refval, em)
+	fmt.Printf("my data | ref.data | diff \n%v\n", r.ToString("%.4e"))
 }
 
 // Implements MatrixVarG interface for matrix valued G
