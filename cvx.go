@@ -58,12 +58,18 @@ type KKTCpSolverVar func(W *sets.FloatMatrixSet, x MatrixVariable, znl *matrix.F
 
 type solverMap map[string]kktSolver
 
+var lpsolvers solverMap = solverMap{
+	"ldl": kktLdl,
+	"ldl2": kktLdl,
+	"qr": kktQr,
+	"chol": kktChol,
+	"chol2": kktChol2}
+
 var solvers solverMap = solverMap{
 	"ldl": kktLdl,
 	"ldl2": kktLdl,
-	"qr": kktLdl,
-	"chol": kktLdl,
-	"chol2": kktLdl}
+	"chol": kktChol,
+	"chol2": kktChol2}
 
 
 type StatusCode int
