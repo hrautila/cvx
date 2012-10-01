@@ -151,7 +151,7 @@ func Cpl(F ConvexProg, c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSe
 	solvername := solopts.KKTSolverName
 	if len(solvername) == 0 {
 		if len(dims.At("q")) > 0 || len(dims.At("s")) > 0 {
-			solvername = "qr"
+			solvername = "chol"
 		} else {
 			solvername = "chol2"
 		}
@@ -405,6 +405,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 	feasTolerance := FEASTOL
 	absTolerance := ABSTOL
 	relTolerance := RELTOL
+	maxIter := MAXITERS
 	if solopts.FeasTol > 0.0 {
 		feasTolerance = solopts.FeasTol
 	}
@@ -418,6 +419,9 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 		refinement = solopts.Refinement
 	} else {
 		refinement = 1
+	}
+	if solopts.MaxIter > 0 {
+		maxIter = solopts.MaxIter
 	}
 
 	solvername := solopts.KKTSolverName
@@ -627,7 +631,7 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 	var fH func(u, v MatrixVariable, alpha, beta float64)error = nil
 
 	relaxed_iters := 0
-	for iters := 0; iters <= solopts.MaxIter+1; iters++ {
+	for iters := 0; iters <= maxIter+1; iters++ {
 		checkpnt.MajorNext()
 		checkpnt.Check("loopstart", 10)
 
@@ -724,9 +728,9 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 		// Stopping criteria
 		if ( pres <= feasTolerance && dres <= feasTolerance &&
 			( gap <= absTolerance || (!math.IsNaN(relgap) && relgap <= relTolerance))) ||
-			iters == solopts.MaxIter {
+			iters == maxIter {
 
-			if iters == solopts.MaxIter {
+			if iters == maxIter {
 				s := "Terminated (maximum number of iterations reached)"
 				if solopts.ShowProgress {
 					fmt.Printf(s + "\n")
