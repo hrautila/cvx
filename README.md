@@ -1,7 +1,7 @@
 cvx
 ===
 
-Package cvx is a package for solving convex optimization problems.
+Package cvx is a Go package for solving convex optimization problems.
 
 It is a straightforward translation of parts of the CVXOPT python package for convex
 optimization. Spefically it provides interfaces for solving linear and quadratic cone
