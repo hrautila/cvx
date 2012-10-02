@@ -1,4 +1,3 @@
-
 // Copyright (c) Harri Rautila, 2012
 
 // This file is part of github.com/hrautila/cvx package. 
@@ -8,10 +7,10 @@
 package checkpnt
 
 import (
-	"fmt"
-	"testing"
+    "fmt"
+    "testing"
 )
 
 func TestCompile(t *testing.T) {
-	fmt.Printf("Compiled OK\n")
+    fmt.Printf("Compiled OK\n")
 }

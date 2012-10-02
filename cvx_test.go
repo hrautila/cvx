@@ -1,14 +1,10 @@
-
 // Copyright (c) Harri Rautila, 2012
-
-
 
 package cvx
 
 import (
-	"testing"
+    "testing"
 )
-
 
 func TestEmpty(t *testing.T) {
 }

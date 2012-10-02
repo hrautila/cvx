@@ -1,4 +1,3 @@
-
 // Copyright (c) Harri Rautila, 2012
 
 // This file is part of github.com/hrautila/cvx package. 
@@ -149,5 +148,5 @@ For more detailed discussion on using solvers see
 
    http://abel.ee.ucla.edu/cvxopt/userguide/index.html
 
- */
+*/
 package cvx
