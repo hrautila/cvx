@@ -175,6 +175,9 @@ func ConeQp(P, q, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solop
 	if kktfunc, ok := solvers[solvername]; ok {
 		// kkt function returns us problem spesific factor function.
 		factor, err = kktfunc(G, dims, A, 0)
+		if err != nil {
+			return nil, err
+		}
 		kktsolver = func(W *sets.FloatMatrixSet) (KKTFunc, error) {
 			return factor(W, P, nil)
 		}

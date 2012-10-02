@@ -213,6 +213,9 @@ func ConeLp(c, G, h, A, b *matrix.FloatMatrix, dims *sets.DimensionSet, solopts 
 	if kktfunc, ok := lpsolvers[solvername]; ok {
 		// kkt function returns us problem spesific factor function.
 		factor, err = kktfunc(G, dims, A, 0)
+		if err != nil {
+			return nil, err
+		}
 		kktsolver = func(W *sets.FloatMatrixSet) (KKTFunc, error) {
 			return factor(W, nil, nil)
 		}

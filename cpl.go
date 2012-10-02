@@ -424,18 +424,6 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 		maxIter = solopts.MaxIter
 	}
 
-	solvername := solopts.KKTSolverName
-	if len(solvername) == 0 {
-		if dims != nil && (len(dims.At("q")) > 0 || len(dims.At("s")) > 0) {
-			solvername = "qr"
-		} else {
-			solvername = "chol2"
-		}
-	}
-
-	//var mnl int
-	//var x0 MatrixVariable
-
 	if x0 == nil {
 		mnl, x0, err = F.F0()
 		if err != nil { return }
@@ -452,8 +440,6 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 	if dims == nil {
 		err = errors.New("Problem dimensions not defined.")
 		return
-		//dims = sets.NewDimensionSet("l", "q", "s")
-		//dims.Set("l", []int{h.Rows()})
 	}
 	if err = checkConeLpDimensions(dims); err != nil {
 		return 
@@ -487,7 +473,6 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 	if b == nil {
 		err = errors.New("'b' must be non-nil MatrixVariable interface.")
 		return
-		//b = &matrixVar{matrix.FloatZeros(0, 1)}
 	}
 
 	if kktsolver == nil {
@@ -779,7 +764,9 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
         //
         // On entry, x, y, z contain bx, by, bz.
         // On exit, they contain ux, uy, uz.
+		checkpnt.MinorPush(95)
         f3, err = kktsolver(W, x, z_mnl)
+		checkpnt.MinorPop()
 		checkpnt.Check("f3", 100)
 		if err != nil {
 			// ?? z_mnl is really copy of z[:mnl] ... should we copy here back to z??
@@ -828,7 +815,9 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
 				relaxed_iters = -1
 
 				// How about z_mnl here???
+				checkpnt.MinorPush(120)
 				f3, err = kktsolver(W, x, z_mnl)
+				checkpnt.MinorPop()
 				if err != nil {
 					singular_kkt_matrix = true
 				}
