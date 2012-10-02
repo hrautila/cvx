@@ -296,10 +296,9 @@ func kktQr(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatrix
 //
 func kktChol(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatrix, mnl int) (kktFactor, error) {
 
-	//fmt.Print("kktChol solver ...\n")
 	p, n := A.Size()
-	cdim := dims.Sum("l", "q") + dims.SumSquared("s")
-	cdim_pckd := dims.Sum("l", "q") + dims.SumPacked("s")
+	cdim := mnl + dims.Sum("l", "q") + dims.SumSquared("s")
+	cdim_pckd := mnl + dims.Sum("l", "q") + dims.SumPacked("s")
 
 	QA := A.Transpose()
 	tauA := matrix.FloatZeros(p, 1)
@@ -321,7 +320,7 @@ func kktChol(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatr
         // and take the Cholesky factorization of the 2,2 block
         //
 		//     Q_2' * (H + GG^T * W^{-1} * W^{-T} * GG) * Q2.
-
+		
 		var err error = nil
 		minor := 0
 		if ! checkpnt.MinorEmpty() {
@@ -332,22 +331,25 @@ func kktChol(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatr
 			Gs.SetSubMatrix(0, 0, Df)
 		}
 		Gs.SetSubMatrix(mnl, 0, G)
+		checkpnt.Check("00factor_chol", minor)
 		scale(Gs, W, true, true)
 		pack2(Gs, dims, mnl)
+		//checkpnt.Check("10factor_chol", minor)
 
         // K = [Q1, Q2]' * (H + Gs' * Gs) * [Q1, Q2].
 		blas.SyrkFloat(Gs, K, 1.0, 0.0, la.OptTrans, &la.IOpt{"k", cdim_pckd})
 		if H != nil {
 			K.SetSubMatrix(0, 0, matrix.Plus(H, K.GetSubMatrix(0, 0, H.Rows(), H.Cols())))
 		}
+		//checkpnt.Check("20factor_chol", minor)
 		symm(K, n, 0)
 		lapack.Ormqr(QA, tauA, K, la.OptLeft, la.OptTrans)
 		lapack.Ormqr(QA, tauA, K, la.OptRight)
+		//checkpnt.Check("30factor_chol", minor)
 
         // Cholesky factorization of 2,2 block of K.
 		lapack.Potrf(K, &la.IOpt{"n", n-p}, &la.IOpt{"offseta", p*(n+1)})
-
-		checkpnt.Check("90factor_chol", minor)
+		checkpnt.Check("40factor_chol", minor)
 
 		solve := func(x, y, z *matrix.FloatMatrix) (err error) {
             // Solve
@@ -522,9 +524,13 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
 					blas.SyrkFloat(F.Dfs, F.S, 1.0, 1.0, la.OptTrans)
 				}
 				blas.SyrkFloat(F.A, F.S, 1.0, 1.0, la.OptTrans)
+				if H != nil {
+					F.S.Plus(H)
+				}
 				lapack.Potrf(F.S)
 			}
 			F.firstcall = false
+			checkpnt.Check("20factor_chol2", minor)
 		} else {
 			blas.SyrkFloat(F.Gs, F.S, 1.0, 0.0, la.OptTrans)
 			if mnl > 0 {
@@ -533,10 +539,12 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
 			if H != nil {
 				F.S.Plus(H)
 			}
+			checkpnt.Check("40factor_chol2", minor)
 			if F.singular {
 				blas.SyrkFloat(F.A, F.S, 1.0, 1.0, la.OptTrans)
 			}
 			lapack.Potrf(F.S)
+			checkpnt.Check("50factor_chol2", minor)
 		}
 
         // Asct := L^{-1}*A'.  Factor K = Asct'*Asct.
@@ -568,6 +576,7 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
             //     S*ux = bx + GG'*W^{-1}*W^{-T}*bz + A'*by - A'*y.
             //     W*uz = W^{-T} * ( GG*ux - bz ).
 
+			//fmt.Printf("chol2 solver ...\n")
 			minor := 0
 			if ! checkpnt.MinorEmpty() {
 				minor = checkpnt.MinorTop()
@@ -575,6 +584,7 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
 
             // z := W^{-1} * z = W^{-1} * bz
 			scale(z, W, true, true)
+			checkpnt.Check("10solve_chol2", minor)
 
             // If not F['singular']:
             //     x := L^{-1} * P * (x + GGs'*z)
