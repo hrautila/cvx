@@ -519,13 +519,17 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
             checkpnt.Check("10factor_chol2", minor)
             err = lapack.Potrf(F.S)
             if err != nil {
+                err = nil // reset error
                 F.singular = true
-                F.S = matrix.FloatZeros(n, n)
-                checkpnt.AddMatrixVar("S", F.S)
+                // original code recreates F.S as dense if it is sparse and
+                // A is dense, we don't do it as currently no sparse matrices
+                //F.S = matrix.FloatZeros(n, n)
+                //checkpnt.AddMatrixVar("S", F.S)
                 blas.SyrkFloat(F.Gs, F.S, 1.0, 0.0, la.OptTrans)
                 if mnl > 0 {
                     blas.SyrkFloat(F.Dfs, F.S, 1.0, 1.0, la.OptTrans)
                 }
+                checkpnt.Check("14factor_chol2", minor)
                 blas.SyrkFloat(F.A, F.S, 1.0, 1.0, la.OptTrans)
                 if H != nil {
                     F.S.Plus(H)
@@ -579,7 +583,6 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
             //     S*ux = bx + GG'*W^{-1}*W^{-T}*bz + A'*by - A'*y.
             //     W*uz = W^{-T} * ( GG*ux - bz ).
 
-            //fmt.Printf("chol2 solver ...\n")
             minor := 0
             if !checkpnt.MinorEmpty() {
                 minor = checkpnt.MinorTop()
@@ -600,11 +603,13 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
                 blas.GemvFloat(F.Dfs, z, x, 1.0, 1.0, la.OptTrans)
             }
             blas.GemvFloat(F.Gs, z, x, 1.0, 1.0, la.OptTrans, &la.IOpt{"offsetx", mnl})
+            //checkpnt.Check("20solve_chol2", minor)
             if F.singular {
                 blas.GemvFloat(F.A, y, x, 1.0, 1.0, la.OptTrans)
             }
+            checkpnt.Check("30solve_chol2", minor)
             blas.TrsvFloat(F.S, x)
-            checkpnt.Check("50solve_chol2", minor)
+            //checkpnt.Check("50solve_chol2", minor)
 
             // y := K^{-1} * (Asc*x - y)
             //    = K^{-1} * (A * S^{-1} * (bx + GG'*W^{-1}*W^{-T}*bz) - by)
@@ -612,8 +617,10 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
             //    = K^{-1} * (A * S^{-1} * (bx + GG'*W^{-1}*W^{-T}*bz + 
             //      A'*by) - by)  
             //      (if F['singular']).
-            blas.GemvFloat(Asct, y, x, 1.0, -1.0, la.OptTrans)
+            blas.GemvFloat(Asct, x, y, 1.0, -1.0, la.OptTrans)
+            //checkpnt.Check("55solve_chol2", minor)
             lapack.Potrs(F.K, y)
+            //checkpnt.Check("60solve_chol2", minor)
 
             // x := P' * L^{-T} * (x - Asc'*y)
             //    = S^{-1} * (bx + GG'*W^{-1}*W^{-T}*bz - A'*y) 
@@ -622,6 +629,7 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
             //      (if F['singular'])
             blas.GemvFloat(Asct, y, x, -1.0, 1.0)
             blas.TrsvFloat(F.S, x, la.OptTrans)
+            checkpnt.Check("70solve_chol2", minor)
 
             // W*z := GGs*x - z = W^{-T} * (GG*x - bz)
             if mnl > 0 {
@@ -639,4 +647,5 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
 
 // Local Variables:
 // tab-width: 4
+// indent-tabs-mode: nil
 // End:
