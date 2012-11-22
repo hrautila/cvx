@@ -568,6 +568,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
     checkpnt.AddVerifiable("dx", dx)
     checkpnt.AddMatrixVar("ds", ds)
     checkpnt.AddMatrixVar("dz", dz)
+    checkpnt.Check("00init", 1)
 
     var W *sets.FloatMatrixSet
     var f KKTFuncVar
@@ -601,8 +602,10 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
             fmt.Printf("kktsolver error: %s\n", err)
             return
         }
+        checkpnt.AddScaleVar(W)
     }
 
+    checkpnt.Check("05init", 5)
     if primalstart == nil {
         // minimize    || G * x - h ||^2
         // subject to  A * x = b
@@ -614,6 +617,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
         //     [ G   0  -I  ]   [ -s ]   [ h ]
         //blas.ScalFloat(x, 0.0)
         //blas.CopyFloat(b, dy)
+        checkpnt.MinorPush(5)
         x.Scal(0.0)
         mCopy(b, dy)
         blas.CopyFloat(h, s)
@@ -625,6 +629,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
         }
         blas.ScalFloat(s, -1.0)
         //fmt.Printf("initial s=\n%v\n", s.ToString("%.5f"))
+        checkpnt.MinorPop()
     } else {
         mCopy(&matrixVar{primalstart.At("x")[0]}, x)
         blas.Copy(primalstart.At("s")[0], s)
@@ -637,6 +642,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
         return
     }
     //fmt.Printf("initial ts=%.5f\n", ts)
+    checkpnt.Check("10init", 10)
 
     if dualstart == nil {
         // minimize   || z ||^2
@@ -650,6 +656,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
         //blas.Copy(c, dx)
         //blas.ScalFloat(dx, -1.0)
         //blas.ScalFloat(y, 0.0)
+        checkpnt.MinorPush(10)
         mCopy(c, dx)
         dx.Scal(-1.0)
         y.Scal(0.0)
@@ -660,6 +667,7 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
             return
         }
         //fmt.Printf("initial z=\n%v\n", z.ToString("%.5f"))
+        checkpnt.MinorPop()
     } else {
         if len(dualstart.At("y")) > 0 {
             mCopy(&matrixVar{dualstart.At("y")[0]}, y)
@@ -682,6 +690,8 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
     pcost := 0.0
     dcost := 0.0
     relgap := 0.0
+
+    checkpnt.Check("20init", 0)
 
     if primalstart == nil && dualstart == nil {
         gap = sdot(s, z, dims, 0)
@@ -1634,4 +1644,5 @@ func conelp_solver(c MatrixVariable, G MatrixVarG, h *matrix.FloatMatrix,
 
 // Local Variables:
 // tab-width: 4
+// indent-tabs-mode: nil
 // End:
