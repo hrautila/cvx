@@ -482,17 +482,17 @@ func cpl_solver(F ConvexVarProg, c MatrixVariable, G MatrixVarG, h *matrix.Float
     z := matrix.FloatZeros(mnl+cdim, 1)
     s := matrix.FloatZeros(mnl+cdim, 1)
     ind := mnl + dims.At("l")[0]
-    z.Set(1.0, matrix.MakeIndexSet(0, ind, 1)...)
-    s.Set(1.0, matrix.MakeIndexSet(0, ind, 1)...)
+    z.SetIndexes(1.0, matrix.MakeIndexSet(0, ind, 1)...)
+    s.SetIndexes(1.0, matrix.MakeIndexSet(0, ind, 1)...)
     for _, m := range dims.At("q") {
-        z.Set(1.0, ind)
-        s.Set(1.0, ind)
+        z.SetIndexes(1.0, ind)
+        s.SetIndexes(1.0, ind)
         ind += m
     }
     for _, m := range dims.At("s") {
         iset := matrix.MakeIndexSet(ind, ind+m*m, m+1)
-        z.Set(1.0, iset...)
-        s.Set(1.0, iset...)
+        z.SetIndexes(1.0, iset...)
+        s.SetIndexes(1.0, iset...)
         ind += m * m
     }
 

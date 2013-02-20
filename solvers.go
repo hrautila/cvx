@@ -369,10 +369,10 @@ func Sdp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghs *sets.FloatMatrixSet, solopts 
 
     // Map hs matrices to h vector
     h := matrix.FloatZeros(N, 1)
-    h.SetIndexes(matrix.MakeIndexSet(0, ml, 1), hl.FloatArray()[:ml])
+    h.SetIndexesFromArray(hl.FloatArray()[:ml], matrix.MakeIndexSet(0, ml, 1)...)
     ind := ml
     for k, hs := range hsset {
-        h.SetIndexes(matrix.MakeIndexSet(ind, ind+ms[k]*ms[k], 1), hs.FloatArray())
+        h.SetIndexesFromArray( hs.FloatArray(), matrix.MakeIndexSet(ind, ind+ms[k]*ms[k], 1)...)
         ind += ms[k] * ms[k]
     }
 

@@ -68,10 +68,10 @@ func kktLdl(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMatri
             // g is (mnl + G.Rows(), 1) matrix, Df is (mnl, n), G is (N, n)
             if mnl > 0 {
                 // set values g[0:mnl] = Df[,k]
-                g.SetIndexes(matrix.MakeIndexSet(0, mnl, 1), Df.GetColumnArray(k, nil))
+                g.SetIndexesFromArray( Df.GetColumnArray(k, nil), matrix.MakeIndexSet(0, mnl, 1)...)
             }
             // set values g[mnl:] = G[,k]
-            g.SetIndexes(matrix.MakeIndexSet(mnl, mnl+g.Rows(), 1), G.GetColumnArray(k, nil))
+            g.SetIndexesFromArray( G.GetColumnArray(k, nil), matrix.MakeIndexSet(mnl, mnl+g.Rows(), 1)...)
             scale(g, W, true, true)
             if err != nil {
                 //fmt.Printf("scale error: %s\n", err)
@@ -499,12 +499,12 @@ func kktChol2(G *matrix.FloatMatrix, dims *sets.DimensionSet, A *matrix.FloatMat
 
         if mnl > 0 {
             dnli := matrix.FloatZeros(mnl, mnl)
-            dnli.SetIndexes(matrix.DiagonalIndexes(dnli), W.At("dnli")[0].FloatArray())
+            dnli.SetIndexesFromArray(W.At("dnli")[0].FloatArray(), matrix.DiagonalIndexes(dnli)...)
             blas.GemmFloat(dnli, Df, F.Dfs, 1.0, 0.0)
         }
         checkpnt.Check("02factor_chol2", minor)
         di := matrix.FloatZeros(ml, ml)
-        di.SetIndexes(matrix.DiagonalIndexes(di), W.At("di")[0].FloatArray())
+        di.SetIndexesFromArray( W.At("di")[0].FloatArray(), matrix.DiagonalIndexes(di)...)
         err = blas.GemmFloat(di, G, F.Gs, 1.0, 0.0)
         checkpnt.Check("06factor_chol2", minor)
 

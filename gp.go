@@ -76,7 +76,7 @@ func (gp *gpConvexProg) F1(x *matrix.FloatMatrix) (f, Df *matrix.FloatMatrix, er
         ymax := maxvec(y.FloatArray()[start:stop])
         // ynew = exp(y[start:stop] - ymax)
         ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop]).Add(-ymax))
-        y.SetIndexes(matrix.Indexes(start, stop), ynew.FloatArray())
+        y.SetIndexesFromArray( ynew.FloatArray(), matrix.Indexes(start, stop)...)
 
         // fi = log sum yi = log sum exp(Fi*x+gi)
         ysum := blas.AsumFloat(y, &la.IOpt{"n", stop - start}, &la.IOpt{"offset", start})
@@ -108,7 +108,7 @@ func (gp *gpConvexProg) F2(x, z *matrix.FloatMatrix) (f, Df, H *matrix.FloatMatr
         // yi := exp(yi) = exp(Fi*x+gi)
         ymax := maxvec(y.FloatArray()[start:stop])
         ynew := matrix.Exp(matrix.FloatVector(y.FloatArray()[start:stop]).Add(-ymax))
-        y.SetIndexes(matrix.Indexes(start, stop), ynew.FloatArray())
+        y.SetIndexesFromArray(ynew.FloatArray(), matrix.Indexes(start, stop)... )
 
         // fi = log sum yi = log sum exp(Fi*x+gi)
         ysum := blas.AsumFloat(y, &la.IOpt{"n", stop - start}, &la.IOpt{"offset", start})
