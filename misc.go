@@ -110,7 +110,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
             err = blas.TbmvFloat(w, x, &la_.IOpt{"n", w.Rows()}, &la_.IOpt{"k", 0},
                 &la_.IOpt{"lda", 1}, &la_.IOpt{"offsetx", k * x.Rows()})
             if err != nil {
-				//fmt.Printf("1. TbmvFloat: %v\n", err)
+                //fmt.Printf("1. TbmvFloat: %v\n", err)
                 return
             }
         }
@@ -134,7 +134,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
         err = blas.TbmvFloat(w, x, &la_.IOpt{"n", w.Rows()}, &la_.IOpt{"k", 0},
             &la_.IOpt{"lda", 1}, &la_.IOpt{"offsetx", k*x.Rows() + ind})
         if err != nil {
-			//fmt.Printf("2. TbmvFloat: %v\n", err)
+            //fmt.Printf("2. TbmvFloat: %v\n", err)
             return
         }
     }
@@ -166,7 +166,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
             &la_.IOpt{"n", x.Cols()}, &la_.IOpt{"offsetA", ind},
             &la_.IOpt{"lda", x.Rows()})
         if err != nil {
-			//fmt.Printf("3. GemvFloat: %v\n", err)
+            //fmt.Printf("3. GemvFloat: %v\n", err)
             return
         }
 
@@ -179,7 +179,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
             &la_.IOpt{"n", x.Cols()}, &la_.IOpt{"lda", x.Rows()},
             &la_.IOpt{"offsetA", ind})
         if err != nil {
-			//fmt.Printf("4. GerFloat: %v\n", err)
+            //fmt.Printf("4. GerFloat: %v\n", err)
             return
         }
 
@@ -245,7 +245,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
                     &la_.IOpt{"n", n}, &la_.IOpt{"lda", n}, &la_.IOpt{"ldb", n},
                     &la_.IOpt{"offsetA", ind + i*x.Rows()})
                 if err != nil {
-					//fmt.Printf("5. TrmmFloat: %v\n", err)
+                    //fmt.Printf("5. TrmmFloat: %v\n", err)
                     return
                 }
 
@@ -254,7 +254,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
                     &la_.IOpt{"k", n}, &la_.IOpt{"ldb", n}, &la_.IOpt{"ldc", n},
                     &la_.IOpt{"offsetC", ind + i*x.Rows()})
                 if err != nil {
-					//fmt.Printf("6. Syr2kFloat: %v\n", err)
+                    //fmt.Printf("6. Syr2kFloat: %v\n", err)
                     return
                 }
 
@@ -263,7 +263,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
                     &la_.IOpt{"n", n}, &la_.IOpt{"lda", n}, &la_.IOpt{"ldb", n},
                     &la_.IOpt{"offsetA", ind + i*x.Rows()})
                 if err != nil {
-					//fmt.Printf("7. TrmmFloat: %v\n", err)
+                    //fmt.Printf("7. TrmmFloat: %v\n", err)
                     return
                 }
 
@@ -272,7 +272,7 @@ func scale(x *matrix.FloatMatrix, W *sets.FloatMatrixSet, trans, inverse bool) (
                     &la_.IOpt{"k", n}, &la_.IOpt{"ldb", n}, &la_.IOpt{"ldc", n},
                     &la_.IOpt{"offsetC", ind + i*x.Rows()})
                 if err != nil {
-					//fmt.Printf("8. Syr2kFloat: %v\n", err)
+                    //fmt.Printf("8. Syr2kFloat: %v\n", err)
                     return
                 }
             }
@@ -728,7 +728,7 @@ func computeScaling(s, z, lmbda *matrix.FloatMatrix, dims *sets.DimensionSet, mn
         //lmd = stmp.Mul(ztmp)
         //lmd.Apply(lmd, math.Sqrt)
         lmd = matrix.Sqrt(matrix.Mul(stmp, ztmp))
-        lmbda.SetIndexesFromArray( lmd.FloatArray(), matrix.MakeIndexSet(0, mnl, 1)...)
+        lmbda.SetIndexesFromArray(lmd.FloatArray(), matrix.MakeIndexSet(0, mnl, 1)...)
     } else {
         // set for empty matrices
         //W.Set("dnl", matrix.FloatZeros(0, 1))
@@ -765,7 +765,7 @@ func computeScaling(s, z, lmbda *matrix.FloatMatrix, dims *sets.DimensionSet, mn
     //lmd.Apply(lmd, math.Sqrt)
     lmd = matrix.Mul(stmp, ztmp).Sqrt()
     // lmd has indexes mnl:mnl+m and length of m
-    lmbda.SetIndexesFromArray( lmd.FloatArray(), matrix.MakeIndexSet(mnl, mnl+m, 1)...)
+    lmbda.SetIndexesFromArray(lmd.FloatArray(), matrix.MakeIndexSet(mnl, mnl+m, 1)...)
     //fmt.Printf("after l:\n%v\n", lmbda)
 
     /*

@@ -55,7 +55,7 @@ func mcsdp(w *matrix.FloatMatrix) (*Solution, error) {
         // scale diagonal of x by 1/2, (x is (n,n))
         tx := x.Copy()
         matrix.Reshape(tx, n, n)
-		tx.Diag().Scale(0.5)
+        tx.Diag().Scale(0.5)
 
         // a := tril(x)*r
         // (python: a = +r is really making a copy of r)
@@ -67,7 +67,7 @@ func mcsdp(w *matrix.FloatMatrix) (*Solution, error) {
         err = blas.Syr2kFloat(r, a, tx, alpha, 0.0, linalg.OptTrans)
 
         // x[:] = tx[:] 
-		tx.CopyTo(x)
+        tx.CopyTo(x)
         return
     }
 
@@ -111,14 +111,14 @@ func mcsdp(w *matrix.FloatMatrix) (*Solution, error) {
             cngrnc(t, tbst, 1.0)
 
             // x := x - diag(tbst) = bx - diag(rti*rti' * bs * rti*rti')
-			diag := tbst.Diag().Transpose()
+            diag := tbst.Diag().Transpose()
             x.Minus(diag)
 
             // x := (t.*t)^{-1} * x = (t.*t)^{-1} * (bx - diag(t*bs*t))
             err = lapack.Potrs(tsq, x)
 
             // z := z + diag(x) = bs + diag(x)
-			// z, x are really column vectors here
+            // z, x are really column vectors here
             z.AddIndexes(matrix.MakeIndexSet(0, n*n, n+1), x.FloatArray())
 
             // z := -rti' * z * rti = -rti' * (diag(x) + bs) * rti 
@@ -136,7 +136,7 @@ func mcsdp(w *matrix.FloatMatrix) (*Solution, error) {
     lapack.Syevx(wp, lmbda, nil, 0.0, nil, []int{1, 1}, linalg.OptRangeInt)
     x0 := matrix.FloatZeros(n, 1).Add(-lmbda.GetAt(0, 0) + 1.0)
     s0 := w.Copy()
-	s0.Diag().Plus(x0.Transpose())
+    s0.Diag().Plus(x0.Transpose())
     matrix.Reshape(s0, n*n, 1)
 
     // initial feasible z is identity

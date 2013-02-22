@@ -372,7 +372,7 @@ func Sdp(c, Gl, hl, A, b *matrix.FloatMatrix, Ghs *sets.FloatMatrixSet, solopts 
     h.SetIndexesFromArray(hl.FloatArray()[:ml], matrix.MakeIndexSet(0, ml, 1)...)
     ind := ml
     for k, hs := range hsset {
-        h.SetIndexesFromArray( hs.FloatArray(), matrix.MakeIndexSet(ind, ind+ms[k]*ms[k], 1)...)
+        h.SetIndexesFromArray(hs.FloatArray(), matrix.MakeIndexSet(ind, ind+ms[k]*ms[k], 1)...)
         ind += ms[k] * ms[k]
     }
 
